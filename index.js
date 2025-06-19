@@ -2,7 +2,7 @@ import dotenv from 'dotenv'
 dotenv.config()
 import app from "./server.js"
 import mongodb from "mongodb"
-//import ReviewsDAO from "./dao/reviewsDAO.js"
+import ReviewsDAO from "./dao/reviewsDAO.js"
 
 const MongoClient = mongodb.MongoClient
 const mongo_username = process.env['MONGO_USERNAME']
@@ -23,7 +23,27 @@ MongoClient.connect(
     process.exit(1)
   })
   .then(async client => {
+    await ReviewsDAO.injectDB(client)
     app.listen(port, () => {
       console.log(`listening on port ${port}`)
     })
   })
+
+/*
+Curl commands for reviews on MongoDB
+
+--add review--
+curl -X POST http://localhost:8000/api/v1/reviews/new -H "Content-Type: application/json" -d '{"movieId": 404, "user": "John", "review": "I am not sure"}'
+
+--get review information--
+-end is an ObjectId-
+curl -X GET http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3
+-end is a movieId
+curl -X GET http://localhost:8000/api/v1/reviews/movie/404
+
+--change a review--
+curl -X PUT http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3 -H "Content-Type: application/json" -d '{"user": "John", "review": "It was okay"}'
+
+--delete a review--
+curl -X DELETE http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3
+*/
