@@ -6,11 +6,13 @@ export default class ReviewsController {
       const movieId = parseInt(req.body.movieId)
       const review = req.body.review
       const user = req.body.user
+      const rating = parseInt(req.body.rating) || 0
 
       const reviewResponse = await ReviewsDAO.addReview(
         movieId,
         user,
-        review
+        review,
+        rating
       )
       res.json({ status: "success" })
     } catch (e) {
@@ -38,11 +40,13 @@ export default class ReviewsController {
       const reviewId = req.params.id
       const review = req.body.review
       const user = req.body.user
+      const rating = parseInt(req.body.rating) || 0
 
       const reviewResponse = await ReviewsDAO.updateReview(
         reviewId,
         user,
-        review
+        review,
+        rating
       )
 
       var { error } = reviewResponse

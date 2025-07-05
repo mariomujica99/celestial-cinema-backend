@@ -33,7 +33,7 @@ MongoClient.connect(
 Curl commands for reviews on MongoDB
 
 --add review--
-curl -X POST http://localhost:8000/api/v1/reviews/new -H "Content-Type: application/json" -d '{"movieId": 404, "user": "John", "review": "I am not sure"}'
+curl -X POST http://localhost:8000/api/v1/reviews/new -H "Content-Type: application/json" -d '{"movieId": 404, "user": "John", "review": "I am not sure", "rating": 7}'
 
 --get review information--
 -end is an ObjectId-
@@ -42,7 +42,7 @@ curl -X GET http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3
 curl -X GET http://localhost:8000/api/v1/reviews/movie/404
 
 --change a review--
-curl -X PUT http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3 -H "Content-Type: application/json" -d '{"user": "John", "review": "It was okay"}'
+curl -X PUT http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3 -H "Content-Type: application/json" -d '{"user": "John", "review": "It was okay", "rating": 6}'
 
 --delete a review--
 curl -X DELETE http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3

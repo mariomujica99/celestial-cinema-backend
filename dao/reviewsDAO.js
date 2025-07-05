@@ -15,12 +15,13 @@ export default class ReviewsDAO {
     }
   }
 
-  static async addReview(movieId, user, review) {
+  static async addReview(movieId, user, review, rating) {
     try {
       const reviewDoc = {
         movieId: movieId,
         user: user,
         review: review,
+        rating: rating,
       }
 
       return await reviews.insertOne(reviewDoc)
@@ -39,11 +40,11 @@ export default class ReviewsDAO {
     }
   }
 
-  static async updateReview(reviewId, user, review) {
+  static async updateReview(reviewId, user, review, rating) {
     try {
       const updateResponse = await reviews.updateOne(
         { _id: new ObjectId(reviewId) },
-        { $set: { user: user, review: review } }
+        { $set: { user: user, review: review, rating: rating } }
       )
 
       return updateResponse
