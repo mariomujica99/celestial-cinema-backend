@@ -39,7 +39,7 @@ curl -X POST http://localhost:8000/api/v1/reviews/new -H "Content-Type: applicat
 -end is an ObjectId-
 curl -X GET http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3
 -end is a movieId
-curl -X GET http://localhost:8000/api/v1/reviews/movie/404
+curl -X GET http://localhost:8000/api/v1/reviews/media/404
 
 --change a review--
 curl -X PUT http://localhost:8000/api/v1/reviews/68548ce5b815f72dabfdd2e3 -H "Content-Type: application/json" -d '{"user": "John", "review": "It was okay", "rating": 6}'
