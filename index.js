@@ -16,7 +16,6 @@ MongoClient.connect(
   {
     maxPoolSize: 50,
     wtimeoutMS: 2500,
-    //useNewUrlParser: true
   })
   .catch(err => {
     console.error(err.stack)
