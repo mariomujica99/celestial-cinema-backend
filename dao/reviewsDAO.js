@@ -15,13 +15,14 @@ export default class ReviewsDAO {
     }
   }
 
-  static async addReview(movieId, user, review, rating) {
+  static async addReview(mediaId, user, review, rating, mediaType = 'movie') {
     try {
       const reviewDoc = {
-        movieId: movieId,
+        mediaId: mediaId,
         user: user,
         review: review,
         rating: rating,
+        mediaType: mediaType,
         createdAt: new Date()
       }
 
@@ -68,14 +69,18 @@ export default class ReviewsDAO {
     }
   }
 
-  static async getReviewsByMovieId(movieId) {
+  static async getReviewsByMediaId(mediaId) {
     try {
-      const cursor = await reviews.find({ movieId: parseInt(movieId) })
+      const cursor = await reviews.find({ mediaId: parseInt(mediaId) })
       return cursor.toArray()
     } catch (e) {
       console.error(`Unable to get review: ${e}`)
       return { error: e }
     }
+  }
+
+  static async getReviewsByMovieId(movieId) {
+    return this.getReviewsByMediaId(movieId);
   }
 
   static async getAllReviews(skip = 0, limit = 24) {

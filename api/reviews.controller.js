@@ -3,20 +3,37 @@ import ReviewsDAO from "../dao/reviewsDAO.js"
 export default class ReviewsController {
   static async apiPostReview(req, res, next) {
     try {
-      const movieId = parseInt(req.body.movieId)
+      const mediaId = parseInt(req.body.movieId || req.body.mediaId)
       const review = req.body.review
       const user = req.body.user
       const rating = parseInt(req.body.rating) || 0
+      const mediaType = req.body.mediaType || 'movie'
 
       const reviewResponse = await ReviewsDAO.addReview(
-        movieId,
+        mediaId,
         user,
         review,
-        rating
+        rating,
+        mediaType
       )
       res.json({ status: "success" })
     } catch (e) {
       res.status(500).json({ error: e.message })
+    }
+  }
+
+  static async apiGetReviews(req, res, next) {
+    try {
+      let id = req.params.id || {}
+      let reviews = await ReviewsDAO.getReviewsByMediaId(id)
+      if (!reviews) {
+        res.status(404).json({ error: "Not found" })
+        return
+      }
+      res.json(reviews)
+    } catch (e) {
+      console.log(`api, ${e}`)
+      res.status(500).json({ error: e })
     }
   }
 
@@ -73,21 +90,6 @@ export default class ReviewsController {
       res.json({ status: "success" })
     } catch (e) {
       res.status(500).json({ error: e.message })
-    }
-  }
-
-  static async apiGetReviews(req, res, next) {
-    try {
-      let id = req.params.id || {}
-      let reviews = await ReviewsDAO.getReviewsByMovieId(id)
-      if (!reviews) {
-        res.status(404).json({ error: "Not found" })
-        return
-      }
-      res.json(reviews)
-    } catch (e) {
-      console.log(`api, ${e}`)
-      res.status(500).json({ error: e })
     }
   }
 
