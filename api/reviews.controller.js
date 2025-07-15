@@ -90,4 +90,27 @@ export default class ReviewsController {
       res.status(500).json({ error: e })
     }
   }
+
+  static async apiGetAllReviews(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1
+      const limit = parseInt(req.query.limit) || 24
+      const skip = (page - 1) * limit
+
+      const reviews = await ReviewsDAO.getAllReviews(skip, limit)
+      const totalCount = await ReviewsDAO.getReviewsCount()
+      
+      const hasMore = skip + reviews.length < totalCount
+
+      res.json({
+        reviews: reviews,
+        hasMore: hasMore,
+        currentPage: page,
+        totalCount: totalCount
+      })
+    } catch (e) {
+      console.log(`api, ${e}`)
+      res.status(500).json({ error: e.message })
+    }
+  }
 }

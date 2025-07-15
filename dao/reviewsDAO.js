@@ -22,6 +22,7 @@ export default class ReviewsDAO {
         user: user,
         review: review,
         rating: rating,
+        createdAt: new Date()
       }
 
       return await reviews.insertOne(reviewDoc)
@@ -44,7 +45,7 @@ export default class ReviewsDAO {
     try {
       const updateResponse = await reviews.updateOne(
         { _id: new ObjectId(reviewId) },
-        { $set: { user: user, review: review, rating: rating } }
+        { $set: { user: user, review: review, rating: rating, updatedAt: new Date() } }
       )
 
       return updateResponse
@@ -74,6 +75,28 @@ export default class ReviewsDAO {
     } catch (e) {
       console.error(`Unable to get review: ${e}`)
       return { error: e }
+    }
+  }
+
+  static async getAllReviews(skip = 0, limit = 24) {
+    try {
+      const cursor = await reviews.find({})
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+      return cursor.toArray()
+    } catch (e) {
+      console.error(`Unable to get all reviews: ${e}`)
+      return { error: e }
+    }
+  }
+
+  static async getReviewsCount() {
+    try {
+      return await reviews.countDocuments({})
+    } catch (e) {
+      console.error(`Unable to get reviews count: ${e}`)
+      return 0
     }
   }
 }
