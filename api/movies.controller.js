@@ -208,4 +208,65 @@ export default class MoviesController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  static async apiGetTVSeasons(req, res) {
+    try {
+      const tvId = req.params.id;
+      const language = req.query.language || 'en-US';
+      
+      if (!tvId || isNaN(tvId)) {
+        return res.status(400).json({ error: 'Valid TV ID is required' });
+      }
+      
+      const data = await MoviesController.makeAPICall(`/tv/${tvId}?language=${language}`);
+      
+      const seasons = data.seasons ? data.seasons.map(season => ({
+        id: season.id,
+        name: season.name,
+        season_number: season.season_number,
+        episode_count: season.episode_count,
+        overview: season.overview,
+        poster_path: season.poster_path,
+        air_date: season.air_date
+      })) : [];
+      
+      res.json({ seasons });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVSeasonEpisodes(req, res) {
+    try {
+      const tvId = req.params.id;
+      const seasonNumber = req.params.season;
+      const language = req.query.language || 'en-US';
+      
+      if (!tvId || isNaN(tvId)) {
+        return res.status(400).json({ error: 'Valid TV ID is required' });
+      }
+      
+      if (!seasonNumber || isNaN(seasonNumber)) {
+        return res.status(400).json({ error: 'Valid season number is required' });
+      }
+      
+      const data = await MoviesController.makeAPICall(`/tv/${tvId}/season/${seasonNumber}?language=${language}`);
+      
+      const episodes = data.episodes ? data.episodes.map(episode => ({
+        id: episode.id,
+        name: episode.name,
+        episode_number: episode.episode_number,
+        overview: episode.overview,
+        air_date: episode.air_date,
+        runtime: episode.runtime,
+        still_path: episode.still_path,
+        vote_average: episode.vote_average,
+        vote_count: episode.vote_count
+      })) : [];
+      
+      res.json({ episodes });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }

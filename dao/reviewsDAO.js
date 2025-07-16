@@ -15,7 +15,7 @@ export default class ReviewsDAO {
     }
   }
 
-  static async addReview(mediaId, user, review, rating, mediaType = 'movie') {
+  static async addReview(mediaId, user, review, rating, mediaType = 'movie', season = null, episode = null) {
     try {
       const reviewDoc = {
         mediaId: mediaId,
@@ -24,6 +24,11 @@ export default class ReviewsDAO {
         rating: rating,
         mediaType: mediaType,
         createdAt: new Date()
+      }
+
+      if (mediaType === 'tv') {
+        reviewDoc.season = season;
+        reviewDoc.episode = episode;
       }
 
       return await reviews.insertOne(reviewDoc)
@@ -42,11 +47,23 @@ export default class ReviewsDAO {
     }
   }
 
-  static async updateReview(reviewId, user, review, rating) {
+  static async updateReview(reviewId, user, review, rating, season = null, episode = null) {
     try {
+      const updateDoc = { 
+        user: user, 
+        review: review, 
+        rating: rating, 
+        updatedAt: new Date() 
+      };
+
+      if (season !== null) {
+        updateDoc.season = season;
+        updateDoc.episode = episode;
+      }
+
       const updateResponse = await reviews.updateOne(
         { _id: new ObjectId(reviewId) },
-        { $set: { user: user, review: review, rating: rating, updatedAt: new Date() } }
+        { $set: updateDoc }
       )
 
       return updateResponse
@@ -102,6 +119,26 @@ export default class ReviewsDAO {
     } catch (e) {
       console.error(`Unable to get reviews count: ${e}`)
       return 0
+    }
+  }
+
+  static async getReviewsByMediaIdWithFilter(mediaId, season = null, episode = null) {
+    try {
+      const query = { mediaId: parseInt(mediaId) };
+      
+      if (season !== null) {
+        query.season = parseInt(season);
+        
+        if (episode !== null) {
+          query.episode = parseInt(episode);
+        }
+      }
+
+      const cursor = await reviews.find(query)
+      return cursor.toArray()
+    } catch (e) {
+      console.error(`Unable to get reviews: ${e}`)
+      return { error: e }
     }
   }
 }

@@ -8,13 +8,23 @@ export default class ReviewsController {
       const user = req.body.user
       const rating = parseInt(req.body.rating) || 0
       const mediaType = req.body.mediaType || 'movie'
+      
+      let season = null;
+      let episode = null;
+      
+      if (mediaType === 'tv') {
+        season = req.body.season ? parseInt(req.body.season) : null;
+        episode = req.body.episode ? parseInt(req.body.episode) : null;
+      }
 
       const reviewResponse = await ReviewsDAO.addReview(
         mediaId,
         user,
         review,
         rating,
-        mediaType
+        mediaType,
+        season,
+        episode
       )
       res.json({ status: "success" })
     } catch (e) {
@@ -25,7 +35,17 @@ export default class ReviewsController {
   static async apiGetReviews(req, res, next) {
     try {
       let id = req.params.id || {}
-      let reviews = await ReviewsDAO.getReviewsByMediaId(id)
+      const season = req.query.season || null;
+      const episode = req.query.episode || null;
+      
+      let reviews;
+      
+      if (season || episode) {
+        reviews = await ReviewsDAO.getReviewsByMediaIdWithFilter(id, season, episode);
+      } else {
+        reviews = await ReviewsDAO.getReviewsByMediaId(id);
+      }
+      
       if (!reviews) {
         res.status(404).json({ error: "Not found" })
         return
@@ -58,12 +78,22 @@ export default class ReviewsController {
       const review = req.body.review
       const user = req.body.user
       const rating = parseInt(req.body.rating) || 0
+      
+      let season = null;
+      let episode = null;
+      
+      if (req.body.mediaType === 'tv') {
+        season = req.body.season ? parseInt(req.body.season) : null;
+        episode = req.body.episode ? parseInt(req.body.episode) : null;
+      }
 
       const reviewResponse = await ReviewsDAO.updateReview(
         reviewId,
         user,
         review,
-        rating
+        rating,
+        season,
+        episode
       )
 
       var { error } = reviewResponse

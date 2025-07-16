@@ -15,5 +15,7 @@ router.route("/details/:id").get(MoviesCtrl.apiGetMovieDetails)
 router.route("/credits/:id").get(MoviesCtrl.apiGetMovieCredits)
 router.route("/tv/details/:id").get(MoviesCtrl.apiGetTVDetails)
 router.route("/tv/credits/:id").get(MoviesCtrl.apiGetTVCredits)
+router.route("/tv/seasons/:id").get(MoviesCtrl.apiGetTVSeasons)
+router.route("/tv/season/:id/:season").get(MoviesCtrl.apiGetTVSeasonEpisodes)
 
 export default router
