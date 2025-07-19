@@ -269,4 +269,52 @@ export default class MoviesController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  static async apiGetPersonDetails(req, res) {
+    try {
+      const personId = req.params.id;
+      const language = req.query.language || 'en-US';
+      
+      if (!personId || isNaN(personId)) {
+        return res.status(400).json({ error: 'Valid person ID is required' });
+      }
+      
+      const data = await MoviesController.makeAPICall(`/person/${personId}?language=${language}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetPersonCredits(req, res) {
+    try {
+      const personId = req.params.id;
+      const language = req.query.language || 'en-US';
+      
+      if (!personId || isNaN(personId)) {
+        return res.status(400).json({ error: 'Valid person ID is required' });
+      }
+      
+      const data = await MoviesController.makeAPICall(`/person/${personId}/combined_credits?language=${language}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVAggregateCredits(req, res) {
+    try {
+      const tvId = req.params.id;
+      const language = req.query.language || 'en-US';
+      
+      if (!tvId || isNaN(tvId)) {
+        return res.status(400).json({ error: 'Valid TV ID is required' });
+      }
+      
+      const data = await MoviesController.makeAPICall(`/tv/${tvId}/aggregate_credits?language=${language}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }
