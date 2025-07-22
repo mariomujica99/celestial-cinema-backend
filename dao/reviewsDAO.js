@@ -113,6 +113,59 @@ export default class ReviewsDAO {
     }
   }
 
+  static async getAllReviewsWithFilters(skip = 0, limit = 24, userFilter = null, sortBy = 'date-newest') {
+    try {
+      const query = {};
+      
+      if (userFilter) {
+        query.user = { $regex: userFilter, $options: 'i' };
+      }
+      
+      let sortOptions = {};
+      switch (sortBy) {
+        case 'date-newest':
+          sortOptions = { createdAt: -1 };
+          break;
+        case 'date-oldest':
+          sortOptions = { createdAt: 1 };
+          break;
+        case 'rating-highest':
+          sortOptions = { rating: -1 };
+          break;
+        case 'rating-lowest':
+          sortOptions = { rating: 1 };
+          break;
+        default:
+          sortOptions = { createdAt: -1 };
+      }
+      
+      const cursor = await reviews.find(query)
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limit);
+        
+      return cursor.toArray();
+    } catch (e) {
+      console.error(`Unable to get filtered reviews: ${e}`);
+      return { error: e };
+    }
+  }
+
+  static async getFilteredReviewsCount(userFilter = null) {
+    try {
+      const query = {};
+      
+      if (userFilter) {
+        query.user = { $regex: userFilter, $options: 'i' };
+      }
+      
+      return await reviews.countDocuments(query);
+    } catch (e) {
+      console.error(`Unable to get filtered reviews count: ${e}`);
+      return 0;
+    }
+  }
+
   static async getReviewsCount() {
     try {
       return await reviews.countDocuments({})

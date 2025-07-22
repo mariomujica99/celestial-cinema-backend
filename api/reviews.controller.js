@@ -125,24 +125,35 @@ export default class ReviewsController {
 
   static async apiGetAllReviews(req, res, next) {
     try {
-      const page = parseInt(req.query.page) || 1
-      const limit = parseInt(req.query.limit) || 24
-      const skip = (page - 1) * limit
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 24;
+      const skip = (page - 1) * limit;
+      const userFilter = req.query.user || null;
+      const mediaFilter = req.query.media || null;
+      const sortBy = req.query.sort || 'date-newest';
 
-      const reviews = await ReviewsDAO.getAllReviews(skip, limit)
-      const totalCount = await ReviewsDAO.getReviewsCount()
+      let reviews;
+      let totalCount;
       
-      const hasMore = skip + reviews.length < totalCount
+      if (userFilter || sortBy !== 'date-newest') {
+        reviews = await ReviewsDAO.getAllReviewsWithFilters(skip, limit, userFilter, sortBy);
+        totalCount = await ReviewsDAO.getFilteredReviewsCount(userFilter);
+      } else {
+        reviews = await ReviewsDAO.getAllReviews(skip, limit);
+        totalCount = await ReviewsDAO.getReviewsCount();
+      }
+      
+      const hasMore = skip + reviews.length < totalCount;
 
       res.json({
         reviews: reviews,
         hasMore: hasMore,
         currentPage: page,
         totalCount: totalCount
-      })
+      });
     } catch (e) {
-      console.log(`api, ${e}`)
-      res.status(500).json({ error: e.message })
+      console.log(`api, ${e}`);
+      res.status(500).json({ error: e.message });
     }
   }
 }
