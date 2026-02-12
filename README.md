@@ -254,11 +254,15 @@ The movies controller acts as a proxy to TMDB API:
 
 ## Author
 
-**Mario Mujica**
+**Mario Mujica**  
+*Neurodiagnostic Technologist*  
+*Full-Stack Software Developer*  
+*B.S. in Neuroscience*
 
 - GitHub: [@mariomujica99](https://github.com/mariomujica99)
 - Backend Repository: [celestial-cinema-backend](https://github.com/mariomujica99/celestial-cinema-backend)
 - LinkedIn: [www.linkedin.com/in/mario-mujica-903b19172]
+- Handshake: [unomaha.joinhandshake.com/profiles/nbw72u](https://unomaha.joinhandshake.com/profiles/nbw72u)
 - Email: mariomujica99@gmail.com
 
 ## Resources
