@@ -145,6 +145,36 @@ export default class MoviesController {
     }
   }
 
+  static async apiSearchCategorized(req, res) {
+    try {
+      const query = req.query.query;
+      if (!query) {
+        return res.status(400).json({ error: 'Query parameter is required' });
+      }
+
+      const page = req.query.page || 1;
+      const language = req.query.language || 'en-US';
+      const encodedQuery = encodeURIComponent(query);
+
+      const [movieData, tvData, personData] = await Promise.all([
+        MoviesController.makeAPICall(`/search/movie?query=${encodedQuery}&page=${page}&language=${language}&include_adult=false`),
+        MoviesController.makeAPICall(`/search/tv?query=${encodedQuery}&page=${page}&language=${language}&include_adult=false`),
+        MoviesController.makeAPICall(`/search/person?query=${encodedQuery}&page=${page}&language=${language}&include_adult=false`)
+      ]);
+
+      res.json({
+        movies:      movieData.results  || [],
+        tvShows:     tvData.results     || [],
+        people:      personData.results || [],
+        movieCount:  movieData.total_results  || 0,
+        tvCount:     tvData.total_results     || 0,
+        peopleCount: personData.total_results || 0
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async apiGetMovieDetails(req, res) {
     try {
       const movieId = req.params.id;
