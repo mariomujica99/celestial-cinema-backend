@@ -3,6 +3,7 @@ import cors from "cors"
 import rateLimit from "express-rate-limit"
 import reviews from "./api/reviews.route.js"
 import movies from "./api/movies.route.js"
+import watchlist from "./api/watchlist.route.js"
 
 const app = express()
 
@@ -36,6 +37,7 @@ app.use("/api/v1/reviews", (req, res, next) => {
 
 app.use("/api/v1/reviews", reviews)
 app.use("/api/v1/movies", movies)
+app.use("/api/v1/watchlist", watchlist)
 app.use("*", (req, res) => res.status(404).json({ error: "not found" }))
 
 export default app
