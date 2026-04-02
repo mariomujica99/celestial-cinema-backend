@@ -390,4 +390,50 @@ export default class MoviesController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  static async apiGetMoviesByGenre(req, res) {
+    try {
+      const { genreId } = req.params;
+      const page = req.query.page || 1;
+
+      if (!genreId || isNaN(genreId)) {
+        return res.status(400).json({ error: 'Valid genre ID is required' });
+      }
+
+      const data = await MoviesController.makeAPICall(
+        `/discover/movie?with_genres=${genreId}&sort_by=popularity.desc&page=${page}`
+      );
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVByGenre(req, res) {
+    try {
+      const { genreId } = req.params;
+      const page = req.query.page || 1;
+
+      if (!genreId || isNaN(genreId)) {
+        return res.status(400).json({ error: 'Valid genre ID is required' });
+      }
+
+      const data = await MoviesController.makeAPICall(
+        `/discover/tv?with_genres=${genreId}&sort_by=popularity.desc&page=${page}`
+      );
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetPopularPeople(req, res) {
+    try {
+      const page = req.query.page || 1;
+      const data = await MoviesController.makeAPICall(`/person/popular?page=${page}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }
