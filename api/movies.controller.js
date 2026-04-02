@@ -42,6 +42,16 @@ export default class MoviesController {
     }
   }
 
+  static async apiGetTrendingTVWeek(req, res) {
+    try {
+      const page = req.query.page || 1;
+      const data = await MoviesController.makeAPICall(`/trending/tv/week?page=${page}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async apiGetPopular(req, res) {
     try {
       const page = req.query.page || 1;
@@ -120,6 +130,39 @@ export default class MoviesController {
       const language = req.query.language || 'en-US';
       
       const data = await MoviesController.makeAPICall(`/tv/popular?page=${page}&language=${language}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVOnTheAir(req, res) {
+    try {
+      const page = req.query.page || 1;
+      const language = req.query.language || 'en-US';
+      const data = await MoviesController.makeAPICall(`/tv/on_the_air?page=${page}&language=${language}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVAiringToday(req, res) {
+    try {
+      const page = req.query.page || 1;
+      const language = req.query.language || 'en-US';
+      const data = await MoviesController.makeAPICall(`/tv/airing_today?page=${page}&language=${language}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVTopRated(req, res) {
+    try {
+      const page = req.query.page || 1;
+      const language = req.query.language || 'en-US';
+      const data = await MoviesController.makeAPICall(`/tv/top_rated?page=${page}&language=${language}`);
       res.json(data);
     } catch (error) {
       res.status(500).json({ error: error.message });
