@@ -234,6 +234,26 @@ export default class MoviesController {
     }
   }
 
+  static async apiGetMovieWatchProviders(req, res) {
+    try {
+      const movieId = req.params.id;
+      if (!movieId || isNaN(movieId)) {
+        return res.status(400).json({ error: 'Valid movie ID is required' });
+      }
+      const data = await MoviesController.makeAPICall(`/movie/${movieId}/watch/providers`);
+      const usProviders = data.results?.US || {};
+      res.json({
+        flatrate: usProviders.flatrate || [],
+        rent:     usProviders.rent     || [],
+        buy:      usProviders.buy      || [],
+        free:     usProviders.free     || [],
+        ads:      usProviders.ads      || []
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async apiGetMovieCredits(req, res) {
     try {
       const movieId = req.params.id;
@@ -261,6 +281,26 @@ export default class MoviesController {
       
       const data = await MoviesController.makeAPICall(`/tv/${tvId}?language=${language}&append_to_response=content_ratings,external_ids`);
       res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVWatchProviders(req, res) {
+    try {
+      const tvId = req.params.id;
+      if (!tvId || isNaN(tvId)) {
+        return res.status(400).json({ error: 'Valid TV ID is required' });
+      }
+      const data = await MoviesController.makeAPICall(`/tv/${tvId}/watch/providers`);
+      const usProviders = data.results?.US || {};
+      res.json({
+        flatrate: usProviders.flatrate || [],
+        rent:     usProviders.rent     || [],
+        buy:      usProviders.buy      || [],
+        free:     usProviders.free     || [],
+        ads:      usProviders.ads      || []
+      });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
