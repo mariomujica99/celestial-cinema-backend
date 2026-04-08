@@ -502,4 +502,30 @@ export default class MoviesController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  static async apiGetSimilarMovies(req, res) {
+    try {
+      const movieId = req.params.id;
+      if (!movieId || isNaN(movieId)) {
+        return res.status(400).json({ error: 'Valid movie ID is required' });
+      }
+      const data = await MoviesController.makeAPICall(`/movie/${movieId}/similar`);
+      res.json({ results: data.results || [] });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetSimilarTV(req, res) {
+    try {
+      const tvId = req.params.id;
+      if (!tvId || isNaN(tvId)) {
+        return res.status(400).json({ error: 'Valid TV ID is required' });
+      }
+      const data = await MoviesController.makeAPICall(`/tv/${tvId}/similar`);
+      res.json({ results: data.results || [] });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }

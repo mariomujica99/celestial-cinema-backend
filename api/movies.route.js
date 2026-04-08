@@ -32,5 +32,7 @@ router.route("/tv/genre/:genreId").get(MoviesCtrl.apiGetTVByGenre)
 router.route("/people/popular").get(MoviesCtrl.apiGetPopularPeople)
 router.route("/videos/:id").get(MoviesCtrl.apiGetMovieVideos)
 router.route("/tv/videos/:id").get(MoviesCtrl.apiGetTVVideos)
+router.route("/similar/:id").get(MoviesCtrl.apiGetSimilarMovies)
+router.route("/tv/similar/:id").get(MoviesCtrl.apiGetSimilarTV)
 
 export default router
