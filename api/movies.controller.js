@@ -246,8 +246,7 @@ export default class MoviesController {
         flatrate: usProviders.flatrate || [],
         rent:     usProviders.rent     || [],
         buy:      usProviders.buy      || [],
-        free:     usProviders.free     || [],
-        ads:      usProviders.ads      || []
+        free:     usProviders.free     || []
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -298,8 +297,7 @@ export default class MoviesController {
         flatrate: usProviders.flatrate || [],
         rent:     usProviders.rent     || [],
         buy:      usProviders.buy      || [],
-        free:     usProviders.free     || [],
-        ads:      usProviders.ads      || []
+        free:     usProviders.free     || []
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
