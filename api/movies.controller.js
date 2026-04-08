@@ -474,4 +474,32 @@ export default class MoviesController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  static async apiGetMovieVideos(req, res) {
+    try {
+      const movieId = req.params.id;
+      if (!movieId || isNaN(movieId)) {
+        return res.status(400).json({ error: 'Valid movie ID is required' });
+      }
+      const data = await MoviesController.makeAPICall(`/movie/${movieId}/videos`);
+      const trailers = (data.results || []).filter(v => v.type === 'Trailer' && v.site === 'YouTube');
+      res.json({ results: trailers });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVVideos(req, res) {
+    try {
+      const tvId = req.params.id;
+      if (!tvId || isNaN(tvId)) {
+        return res.status(400).json({ error: 'Valid TV ID is required' });
+      }
+      const data = await MoviesController.makeAPICall(`/tv/${tvId}/videos`);
+      const trailers = (data.results || []).filter(v => v.type === 'Trailer' && v.site === 'YouTube');
+      res.json({ results: trailers });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }
