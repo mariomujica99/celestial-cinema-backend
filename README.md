@@ -1,6 +1,6 @@
 # Celestial Cinema Backend
 
-This is a Node.js/Express RESTful API server that powers the Celestial Cinema web application. This backend serves as a proxy to The Movie Database (TMDB) API and manages a custom review system with MongoDB. Comprehensive movie and TV show data is provided along with user ratings and reviews.
+This is a Node.js/Express RESTful API server that powers the Celestial Cinema web application. This backend serves as a proxy to The Movie Database (TMDB) API and manages a custom review and watchlist system with MongoDB.
 
 [![Website](https://img.shields.io/badge/Website-6A5ACD)](https://mariomujica99.github.io/celestial-cinema/index.html)
 [![Frontend](https://img.shields.io/badge/Frontend-lightslategray)](https://github.com/mariomujica99/celestial-cinema)
@@ -8,26 +8,37 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
 ## Features
 
 #### TMDB API Integration
-- Movie Data: Trending, popular, now playing, upcoming, and top-rated movies
-- TV Show Data: Popular series, seasons, episodes, and aggregate credits
-- Search: Multi-search across movies, TV shows, and people
-- Detailed Information: Cast, crew, release dates, ratings, and metadata
-- Person Profiles: Actor/crew biographies and filmographies
+- Movie Data: Trending (day/week), popular, now playing, and top-rated movies
+- TV Show Data: Trending, popular, airing today, top-rated, seasons, and episodes
+- Search: Separate categorized search across movies, TV shows, and people with total counts per category, plus standard multi-search
+- Detailed Information: Cast, crew, aggregate credits, release dates, content ratings, ratings, and metadata
+- Person Profiles: Actor/crew biographies and combined filmographies
+- Genre Discovery: Discover movies and TV shows by genre ID
+- Watch Providers: US streaming, rental, and purchase options for movies and TV shows
+- Videos: YouTube trailer lists for movies and TV shows
+- Similar Media: Related movies and TV shows per title
+- Popular People: Trending person discovery
 
 #### Review System
-- CRUD Operations: Full create, read, update, and delete functionality
-- Dual Media Support: Separate handling for movies and TV shows
-- Granular TV Reviews: Review specific episodes or entire seasons
-- Filtering & Sorting: Advanced query capabilities by user, rating, and date
-- Pagination: Data loading with customizable page sizes
-- Timestamp Tracking: Automatic creation and update timestamps
+- CRUD Operations: Full create, read, update, and delete
+- Dual Media Support: Movies and TV shows handled with a shared `mediaId` field
+- Granular TV Reviews: Review an entire series, a specific season, or a specific episode
+- Filtering and Sorting: Query by user (regex), sort by date or rating
+- Pagination: Configurable page size with `hasMore` flag for load-more UX
+- Timestamp Tracking: `createdAt` and `updatedAt` fields set automatically
 
-#### Security & Performance
-- CORS Configuration: Secure cross-origin resource sharing
-- Rate Limiting: Protection against API abuse
-- Environment Variables: Secure credential management
-- Error Handling: Comprehensive error responses
-- Input Validation: Request parameter validation
+#### Watchlist System
+- Toggle Endpoint: Single endpoint adds or removes an item based on existing state
+- Check Endpoint: Returns whether a specific user/media combination is saved
+- Remove by ID: Direct deletion by MongoDB ObjectId
+- Global List: Shared watchlist sorted by most recently added
+
+#### Security and Performance
+- CORS: Open for frontend use
+- Rate Limiting: 300 requests per 15 minutes globally; 20 write requests per 15 minutes on review mutations
+- Environment Variables: TMDB API key and MongoDB credentials stored in `.env`
+- Error Handling: Consistent error responses without exposing stack traces
+- Input Validation: ID format checks and required parameter guards on all endpoints
 
 ## Technology Stack
 
@@ -55,130 +66,105 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
 
 ### Reviews API (`/api/v1/reviews`)
 
-#### Get All Reviews
-- GET /api/v1/reviews?page=1&limit=24&sort=date-newest&user=John
-
-Parameters:
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Results per page (default: 24)
-- `sort` (optional): `date-newest`, `date-oldest`, `rating-highest`, `rating-lowest`
-- `user` (optional): Filter by username
-
-#### Get Reviews by Media ID
-- GET /api/v1/reviews/media/:id?season=1&episode=5
-
-Parameters:
-- `:id`: TMDB media ID
-- `season` (optional): TV season number
-- `episode` (optional): TV episode number
-
-#### Get Single Review
-- GET /api/v1/reviews/:id
-
-Parameters:
-- `:id`: MongoDB review ObjectId
-
-#### Create Review
-- POST /api/v1/reviews/new
-
-Movie Review Example:
-
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | All reviews with optional `page`, `limit`, `sort`, `user` query params |
+| GET | `/media/:id` | Reviews for a media ID, with optional `season` and `episode` filters |
+| GET | `/:id` | Single review by MongoDB ObjectId |
+| POST | `/new` | Create a review |
+| PUT | `/:id` | Update a review |
+| DELETE | `/:id` | Delete a review |
+ 
+**Sort options:** `date-newest`, `date-oldest`, `rating-highest`, `rating-lowest`
+ 
+**Movie Review Body**
+```json
 {
   "movieId": 550,
-  "user": "John Doe",
-  "review": "Amazing movie!",
+  "user": "John",
+  "review": "Great film.",
   "rating": 9,
   "mediaType": "movie"
 }
-
-TV Show Review Example:
-
+```
+ 
+**Show Review Body**
+```json
 {
-  "mediaId": 1399,
-  "user": "Jane Smith",
-  "review": "Best episode ever!",
+  "movieId": 1399,
+  "user": "Jane",
+  "review": "Best episode yet.",
   "rating": 10,
   "mediaType": "tv",
   "season": 1,
   "episode": 9
 }
-
-#### Update Review
-- PUT /api/v1/reviews/:id
-
-#### Delete Review
-- DELETE /api/v1/reviews/:id
+```
 
 ---
 
-### Movies API (`/api/v1/movies`)
-
-#### Trending Movies
-- GET /api/v1/movies/trending/week?page=1
-- GET /api/v1/movies/trending/day?page=1
-
-#### Movie Categories
-- GET /api/v1/movies/popular?page=1&language=en-US&region=US
-- GET /api/v1/movies/now-playing?page=1
-- GET /api/v1/movies/upcoming?page=1
-- GET /api/v1/movies/top-rated?page=1
-
-#### Movie Details
-- GET /api/v1/movies/details/:id?language=en-US
-  - Returns movie details with appended release dates.
-
-#### Movie Credits
-- GET /api/v1/movies/credits/:id?language=en-US
-  - Returns cast and crew information.
-
----
-
-### TV Shows API (`/api/v1/movies/tv`)
-
-#### Popular TV Shows
-- GET /api/v1/movies/tv/popular?page=1&language=en-US
-
-#### TV Show Details
-- GET /api/v1/movies/tv/details/:id?language=en-US
-  - Returns TV show details with content ratings and external IDs.
-
-#### TV Credits
-- GET /api/v1/movies/tv/credits/:id
-- GET /api/v1/movies/tv/aggregate_credits/:id
-  - `credits`: Episode-specific cast/crew
-  - `aggregate_credits`: Series-wide cast/crew with episode counts
-
-#### TV Seasons
-- GET /api/v1/movies/tv/seasons/:id
-  - Returns all seasons for a TV show.
-
-#### Season Episodes
-- GET /api/v1/movies/tv/season/:id/:season
-  - Returns all episodes for a specific season.
+### Watchlist (`/api/v1/watchlist`)
+ 
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | All watchlist items sorted by `addedAt` descending |
+| POST | `/toggle` | Add or remove an item based on username and mediaId |
+| GET | `/check` | Check if a username/mediaId combination is saved |
+| DELETE | `/:id` | Remove an item by MongoDB ObjectId |
+ 
+**Body**
+```json
+{
+  "username": "mario",
+  "mediaId": "550",
+  "title": "Fight Club",
+  "year": 1999,
+  "mediaType": "movie",
+  "posterPath": "/path.jpg"
+}
+```
 
 ---
 
-### People API (`/api/v1/movies/person`)
+### Media API (`/api/v1/movies`)
 
-#### Person Details
-- GET /api/v1/movies/person/:id?language=en-US
-  - Returns biography and personal information.
-
-#### Person Credits
-- GET /api/v1/movies/person/:id/credits?language=en-US
-  - Returns combined filmography (movies and TV shows).
-
----
-
-### Search API
-
-#### Multi-Search
-- GET /api/v1/movies/search?query=inception&page=1&language=en-US&include_adult=false
-  - Searches across movies, TV shows, and people.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/trending/week` | Trending movies this week |
+| GET | `/trending/day` | Trending movies today |
+| GET | `/trending/tv/week` | Trending TV shows this week |
+| GET | `/popular` | Popular movies |
+| GET | `/now-playing` | Now playing movies |
+| GET | `/upcoming` | Upcoming movies |
+| GET | `/top-rated` | Top rated movies |
+| GET | `/tv/popular` | Popular TV shows |
+| GET | `/tv/airing-today` | TV shows airing today |
+| GET | `/tv/on-the-air` | TV shows currently on the air |
+| GET | `/tv/top-rated` | Top rated TV shows |
+| GET | `/search` | Multi-search (movies, TV, people) |
+| GET | `/search/categorized` | Categorized search with counts per type |
+| GET | `/details/:id` | Movie details with release dates appended |
+| GET | `/credits/:id` | Movie cast and crew |
+| GET | `/watch-providers/:id` | US streaming/rental/purchase options for a movie |
+| GET | `/videos/:id` | YouTube trailers for a movie |
+| GET | `/similar/:id` | Similar movies |
+| GET | `/genre/:genreId` | Discover movies by genre |
+| GET | `/tv/details/:id` | TV show details with content ratings and external IDs appended |
+| GET | `/tv/credits/:id` | TV episode-level cast and crew |
+| GET | `/tv/aggregate_credits/:id` | Series-wide cast and crew with episode counts |
+| GET | `/tv/seasons/:id` | Season list for a TV show |
+| GET | `/tv/season/:id/:season` | Episodes for a specific season |
+| GET | `/tv/watch-providers/:id` | US streaming/rental/purchase options for a TV show |
+| GET | `/tv/videos/:id` | YouTube trailers for a TV show |
+| GET | `/tv/similar/:id` | Similar TV shows |
+| GET | `/tv/genre/:genreId` | Discover TV shows by genre |
+| GET | `/person/:id` | Person biography and details |
+| GET | `/person/:id/credits` | Combined movie and TV filmography |
+| GET | `/people/popular` | Popular people |
 
 ## Database Schema
 
-#### Reviews Collection
+**Reviews Collection**
 
 ```javascript
 {
@@ -195,10 +181,19 @@ TV Show Review Example:
 }
 ```
 
-Indexes:
-- `mediaId`: For fast media-specific queries
-- `createdAt`: For chronological sorting
-- Compound index on `mediaId + season + episode` for TV reviews
+**Watchlist Collection**
+```javascript
+{
+  _id: ObjectId,
+  username: String,       // stored lowercase
+  mediaId: String,
+  title: String,
+  year: Number,
+  mediaType: String,      // "movie" | "tv"
+  posterPath: String,
+  addedAt: Date
+}
+```
 
 ## Architecture
 
@@ -220,37 +215,21 @@ Response Formatting
 Client Response
 ```
 
-#### Data Access Layer
-The application uses a Data Access Object (DAO) pattern to abstract database operations:
-- reviewsDAO.js: Handles all MongoDB operations for reviews
-- Centralized Logic: Business logic separated from routing
-- Error Handling: Error responses across endpoints
-
-#### API Proxy Pattern
-The movies controller acts as a proxy to TMDB API:
-- Rate Limiting: Protects against excessive requests
-- Error Handling: Degradation on API failures
-- Data Transformation: Formats TMDB responses for frontend needs
-- Security: Hides API keys from client-side code
-
 ## Security
 
-- Environment variables for sensitive credentials
-- CORS configuration to restrict origin access
-- Input validation on all endpoints
-- MongoDB injection prevention via native driver
-- Rate limiting on API endpoints
-- Error messages that don't expose system details
-- Secure MongoDB connection strings
-- HTTPS enforcement (handled by Render)
-- No sensitive data in version control
+- API key stored in environment variable, never exposed to the client
+- CORS open for frontend GitHub Pages origin
+- Rate limiting on all routes; stricter limits on write operations
+- Input validation on all endpoints (ID format checks, required field guards)
+- MongoDB native driver used directly; no raw string interpolation into queries
+- Error responses omit stack traces in production
 
 ## Performance Optimizations
 
-- Pagination: Limits database queries and response sizes
-- Indexing: MongoDB indexes on frequently queried fields
-- Connection Pooling: MongoDB connection pool (max 50)
-- Lean Queries: Only fetching required fields from database
+- Pagination on all list endpoints to limit response size
+- MongoDB indexes on `mediaId` and `createdAt` for fast review queries
+- Connection pooling (max 50 connections)
+- Categorized search uses `Promise.all` to run three TMDB queries in parallel
 
 ## Author
 
