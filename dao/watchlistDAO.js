@@ -13,7 +13,7 @@ export default class WatchlistDAO {
     }
   }
 
-  static async addItem(username, mediaId, title, year, mediaType, posterPath) {
+  static async addItem(username, mediaId, title, year, mediaType, posterPath, voteAverage = null, runtime = null, contentRating = null) {
     try {
       const existing = await watchlist.findOne({
         username: username.toLowerCase(),
@@ -28,6 +28,9 @@ export default class WatchlistDAO {
         year,
         mediaType,
         posterPath,
+        voteAverage: voteAverage ?? null,
+        runtime:     runtime     ?? null,
+        contentRating: contentRating ?? null,
         addedAt: new Date()
       };
       return await watchlist.insertOne(doc);

@@ -23,7 +23,7 @@ export default class WatchlistController {
 
   static async apiToggleWatchlist(req, res) {
     try {
-      const { username, mediaId, title, year, mediaType, posterPath } = req.body;
+      const { username, mediaId, title, year, mediaType, posterPath, voteAverage, runtime, contentRating } = req.body;
 
       if (!username || !mediaId) {
         return res.status(400).json({ error: 'username and mediaId are required' });
@@ -36,7 +36,7 @@ export default class WatchlistController {
         return res.json({ status: 'removed' });
       }
 
-      await WatchlistDAO.addItem(username, mediaId, title, year, mediaType, posterPath);
+      await WatchlistDAO.addItem(username, mediaId, title, year, mediaType, posterPath, voteAverage ?? null, runtime ?? null, contentRating ?? null);
       res.json({ status: 'added' });
     } catch (e) {
       res.status(500).json({ error: e.message });
