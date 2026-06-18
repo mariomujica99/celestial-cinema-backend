@@ -7,6 +7,20 @@ const MAX_CACHE_SIZE = 300;
 
 const TOP_CAST_LIMIT = 15;
 
+// Sourcing tier multipliers — applied after base scoreCandidate.
+// Order of priority: company > keyword > recommendation > genre.
+const TIER_MULTIPLIERS = {
+  company:        1.40,
+  keyword:        1.25,
+  recommendation: 1.15,
+  genre:          1.00
+};
+
+// Convergence boost per additional bucket beyond the first.
+// Capped at 3 extra buckets (+0.12 max) to stay within the 0-1 score scale.
+const CONVERGENCE_BONUS_PER_BUCKET = 0.04;
+const CONVERGENCE_MAX_EXTRA_BUCKETS = 3;
+
 async function fetchKeywordIds(mediaId, mediaType) {
   try {
     const endpoint = mediaType === 'tv'
@@ -82,15 +96,15 @@ async function fetchRecommendationCandidates(mediaId, mediaType, sourceIdInt) {
 
 /**
  * @param {Set<number>} keywordIds
- * @param {string}      mediaType   - 'movie' | 'tv'
+ * @param {string}      mediaType
  * @param {number}      sourceIdInt
  * @param {number}      pagesPerKeyword
  */
 async function fetchDiscoverCandidatesByKeywords(keywordIds, mediaType, sourceIdInt, pagesPerKeyword = 1) {
   if (keywordIds.size === 0) return [];
 
-  const TOP_KEYWORDS = 5;
-  const endpoint = mediaType === 'tv' ? '/discover/tv' : '/discover/movie';
+  const TOP_KEYWORDS  = 5;
+  const endpoint      = mediaType === 'tv' ? '/discover/tv' : '/discover/movie';
   const topKeywordIds = [...keywordIds].slice(0, TOP_KEYWORDS);
 
   const fetchPromises = [];
@@ -130,7 +144,7 @@ async function fetchDiscoverCandidatesByKeywords(keywordIds, mediaType, sourceId
 async function seedKeywordsFromRecommendations(recommendations, seedLimit = 4) {
   if (recommendations.length === 0) return new Set();
 
-  const seeds = recommendations.slice(0, seedLimit);
+  const seeds  = recommendations.slice(0, seedLimit);
   const kwSets = await Promise.all(
     seeds.map(c => fetchKeywordIds(c.id, c.mediaType))
   );
@@ -159,6 +173,33 @@ async function fetchCompanyTvShows(companyIds, sourceIdInt) {
   } catch {
     return [];
   }
+}
+
+/**
+ * Resolves the highest-priority tier for a candidate given its sourcing buckets.
+ * Priority: company > keyword > recommendation > genre.
+ *
+ * @param {Set<string>} buckets
+ * @returns {string}
+ */
+function resolveTier(buckets) {
+  if (buckets.has('company'))        return 'company';
+  if (buckets.has('keyword'))        return 'keyword';
+  if (buckets.has('recommendation')) return 'recommendation';
+  return 'genre';
+}
+
+/**
+ * Computes the convergence bonus for a candidate appearing in multiple buckets.
+ * Each extra bucket beyond the first adds CONVERGENCE_BONUS_PER_BUCKET,
+ * capped at CONVERGENCE_MAX_EXTRA_BUCKETS.
+ *
+ * @param {Set<string>} buckets
+ * @returns {number}
+ */
+function convergenceBonus(buckets) {
+  const extraBuckets = Math.min(buckets.size - 1, CONVERGENCE_MAX_EXTRA_BUCKETS);
+  return extraBuckets * CONVERGENCE_BONUS_PER_BUCKET;
 }
 
 export default class SimilarController {
@@ -228,24 +269,29 @@ export default class SimilarController {
         fetchDiscoverCandidatesByKeywords(effectiveKeywordIds, 'tv',    sourceIdInt, 2)
       ]);
 
-      const franchiseCandidateIds = new Set();
-      const seenGlobal            = new Set();
-      const allCandidates         = [];
+      // Build a candidate map keyed by "mediaType_id".
+      // Track ALL sourcing buckets per candidate rather than
+      // first-seen only — this enables convergence scoring and
+      // correct tier assignment without any additional API calls.
+      const candidateMap = new Map();
 
-      const addCandidate = (c, isFranchise) => {
+      const registerCandidate = (c, bucket) => {
         const key = `${c.mediaType}_${c.id}`;
-        if (seenGlobal.has(key)) return;
-        seenGlobal.add(key);
-        if (isFranchise) franchiseCandidateIds.add(key);
-        allCandidates.push(c);
+        if (candidateMap.has(key)) {
+          candidateMap.get(key).buckets.add(bucket);
+        } else {
+          candidateMap.set(key, { ...c, buckets: new Set([bucket]) });
+        }
       };
 
-      for (const c of companyTvCandidates)      addCandidate(c, true);
-      for (const c of kwMovieCandidates)        addCandidate(c, true);
-      for (const c of kwTvCandidates)           addCandidate(c, true);
-      for (const c of recommendationCandidates) addCandidate(c, true);
-      for (const c of movieDiscoverCandidates)  addCandidate(c, false);
-      for (const c of tvDiscoverCandidates)     addCandidate(c, false);
+      for (const c of companyTvCandidates)      registerCandidate(c, 'company');
+      for (const c of kwMovieCandidates)        registerCandidate(c, 'keyword');
+      for (const c of kwTvCandidates)           registerCandidate(c, 'keyword');
+      for (const c of recommendationCandidates) registerCandidate(c, 'recommendation');
+      for (const c of movieDiscoverCandidates)  registerCandidate(c, 'genre');
+      for (const c of tvDiscoverCandidates)     registerCandidate(c, 'genre');
+
+      const allCandidates = Array.from(candidateMap.values());
 
       if (allCandidates.length === 0) return res.json({ results: [] });
 
@@ -253,14 +299,17 @@ export default class SimilarController {
       const oppositeTypeCount = mediaType === 'movie' ? 4 : 6;
       const totalFinal        = sameTypeCount + oppositeTypeCount;
 
-      // Score every candidate using only signals already present in
-      // discover/recommendation responses. No per-candidate enrichment
-      // fetches needed — cast and keyword scoring resolve to 0 via
-      // empty Sets, but keyword sourcing above still drives candidate
-      // pool thematic relevance.
-      const scored = allCandidates.map(c => ({
-        ...c,
-        _score: scoreCandidate(
+      // Score every candidate using signals already present in
+      // discover/recommendation responses — no per-candidate enrichment
+      // fetches needed. Precision improvements come from:
+      //   1. Tier multiplier based on highest-priority sourcing bucket
+      //   2. Convergence bonus for candidates appearing in multiple buckets
+      //   3. isFranchiseTv boost retained for TV candidates in non-genre tiers
+      const scored = allCandidates.map(c => {
+        const tier      = resolveTier(c.buckets);
+        const isFranchiseTv = tier !== 'genre' && c.mediaType === 'tv';
+
+        const base = scoreCandidate(
           sourceGenreIds,
           new Set(),
           new Set(),
@@ -274,33 +323,38 @@ export default class SimilarController {
             voteAverage:  c.voteAverage  || 0,
             voteCount:    c.voteCount    || 0
           },
-          franchiseCandidateIds.has(`${c.mediaType}_${c.id}`) && c.mediaType === 'tv'
-        )
-      }));
+          isFranchiseTv
+        );
+
+        const finalScore =
+          (base * TIER_MULTIPLIERS[tier]) + convergenceBonus(c.buckets);
+
+        return { ...c, _score: finalScore, _tier: tier };
+      });
 
       scored.sort((a, b) => b._score - a._score);
 
-      // Interleave: franchise items first (movies then TV alternating),
-      // genre/popularity items after.
-      const franchiseMovies = scored
-        .filter(c => franchiseCandidateIds.has(`${c.mediaType}_${c.id}`) && c.mediaType === 'movie');
+      // Interleave: non-genre tier items first (movies then TV alternating),
+      // genre-only items after.
+      const tieredMovies = scored
+        .filter(c => c._tier !== 'genre' && c.mediaType === 'movie');
 
-      const franchiseTv = scored
-        .filter(c => franchiseCandidateIds.has(`${c.mediaType}_${c.id}`) && c.mediaType === 'tv');
+      const tieredTv = scored
+        .filter(c => c._tier !== 'genre' && c.mediaType === 'tv');
 
-      const otherRanked = scored
-        .filter(c => !franchiseCandidateIds.has(`${c.mediaType}_${c.id}`));
+      const genreOnly = scored
+        .filter(c => c._tier === 'genre');
 
-      const franchiseInterleaved = [];
-      const maxFranchiseLen = Math.max(franchiseMovies.length, franchiseTv.length);
-      for (let i = 0; i < maxFranchiseLen; i++) {
-        if (franchiseMovies[i]) franchiseInterleaved.push(franchiseMovies[i]);
-        if (franchiseTv[i])     franchiseInterleaved.push(franchiseTv[i]);
+      const tieredInterleaved = [];
+      const maxTieredLen = Math.max(tieredMovies.length, tieredTv.length);
+      for (let i = 0; i < maxTieredLen; i++) {
+        if (tieredMovies[i]) tieredInterleaved.push(tieredMovies[i]);
+        if (tieredTv[i])     tieredInterleaved.push(tieredTv[i]);
       }
 
-      const results = [...franchiseInterleaved, ...otherRanked]
+      const results = [...tieredInterleaved, ...genreOnly]
         .slice(0, totalFinal)
-        .map(({ _score, _isFranchise, genreIds, castIds, keywordIds, ...clean }) => ({
+        .map(({ _score, _tier, buckets, genreIds, castIds, keywordIds, ...clean }) => ({
           ...clean,
           genre_ids:    [...(genreIds || [])],
           vote_average: clean.voteAverage,
