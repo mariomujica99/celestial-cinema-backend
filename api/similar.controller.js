@@ -1,6 +1,10 @@
 import MoviesController from './movies.controller.js';
 import { rankCandidates, scoreCandidate } from '../algorithms/contentBasedSimilarity.js';
 
+const similarCache   = new Map();
+const CACHE_TTL_MS   = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_CACHE_SIZE = 300;
+
 const TOP_CAST_LIMIT = 15;
 
 const KEYWORD_MOVIE_SLOTS = 15;
@@ -184,6 +188,14 @@ export default class SimilarController {
         return res.status(400).json({ error: 'Valid media ID is required' });
       }
 
+      const cacheKey  = `${mediaType}_${mediaId}`;
+      const cached    = similarCache.get(cacheKey);
+      const nowMs     = Date.now();
+
+      if (cached && nowMs - cached.timestamp < CACHE_TTL_MS) {
+        return res.json({ results: cached.results });
+      }
+
       const sourceIdInt = parseInt(mediaId);
 
       const detailsEndpoint = mediaType === 'tv'
@@ -353,6 +365,12 @@ export default class SimilarController {
           poster_path:  clean.posterPath,
           release_date: clean.releaseDate
         }));
+
+      if (similarCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = similarCache.keys().next().value;
+        similarCache.delete(oldestKey);
+      }
+      similarCache.set(cacheKey, { results, timestamp: Date.now() });
 
       res.json({ results });
     } catch (error) {
