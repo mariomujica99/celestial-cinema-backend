@@ -6,10 +6,10 @@ const WEIGHTS = {
   collection: 0.07
 };
 
-const KEYWORD_MOVIE_SLOTS = 10;
-const KEYWORD_TV_SLOTS    = 12;
-const GENRE_MOVIE_SLOTS   =  6;
-const GENRE_TV_SLOTS      =  6;
+const KEYWORD_MOVIE_SLOTS = 15;
+const KEYWORD_TV_SLOTS    = 20;
+const GENRE_MOVIE_SLOTS   = 10;
+const GENRE_TV_SLOTS      = 10;
 
 /**
  * @param {Set<number>} sourceGenreIds
