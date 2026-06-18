@@ -6,11 +6,6 @@ const WEIGHTS = {
   collection: 0.07
 };
 
-const KEYWORD_MOVIE_SLOTS = 15;
-const KEYWORD_TV_SLOTS    = 20;
-const GENRE_MOVIE_SLOTS   = 10;
-const GENRE_TV_SLOTS      = 10;
-
 /**
  * @param {Set<number>} sourceGenreIds
  * @param {Set<number>} sourceCastIds
@@ -67,95 +62,4 @@ export function scoreCandidate(
     WEIGHTS.collection * collectionScore;
 
   return isFranchiseTv ? rawScore * 1.35 : rawScore;
-}
-
-/**
- *
- * @param {object}   sourceSignals
- * @param {object[]} candidates
- * @param {Set<string>} franchiseCandidateIds
- * @param {Function} enrichCandidate
- * @param {number}   finalCount
- * @returns {Promise<object[]>}
- */
-export async function rankCandidates(
-  sourceSignals,
-  candidates,
-  franchiseCandidateIds,
-  enrichCandidate,
-  finalCount = 10
-) {
-  const { genreIds, castIds, keywordIds, collectionId } = sourceSignals;
-
-  const pass1 = candidates.map(c => ({
-    ...c,
-    _isFranchise: franchiseCandidateIds.has(`${c.mediaType}_${c.id}`),
-    _pass1Score: scoreCandidate(
-      genreIds,
-      new Set(),
-      new Set(),
-      collectionId,
-      {
-        genreIds:     c.genreIds     || new Set(),
-        collectionId: c.collectionId ?? null,
-        popularity:   c.popularity   || 0,
-        voteAverage:  c.voteAverage  || 0,
-        voteCount:    c.voteCount    || 0
-      }
-    )
-  }));
-
-  pass1.sort((a, b) => b._pass1Score - a._pass1Score);
-
-  const franchiseMovies = pass1.filter(c => c._isFranchise && c.mediaType === 'movie');
-  const franchiseTv     = pass1.filter(c => c._isFranchise && c.mediaType === 'tv');
-  const genreMovies     = pass1.filter(c => !c._isFranchise && c.mediaType === 'movie');
-  const genreTv         = pass1.filter(c => !c._isFranchise && c.mediaType === 'tv');
-
-  const franchiseMovieSurvivors = franchiseMovies.slice(0, KEYWORD_MOVIE_SLOTS);
-  const franchiseTvSurvivors    = franchiseTv.slice(0, KEYWORD_TV_SLOTS);
-
-  const usedIds = new Set([
-    ...franchiseMovieSurvivors.map(c => `${c.mediaType}_${c.id}`),
-    ...franchiseTvSurvivors.map(c => `${c.mediaType}_${c.id}`)
-  ]);
-
-  const genreMovieSurvivors = genreMovies
-    .filter(c => !usedIds.has(`${c.mediaType}_${c.id}`))
-    .slice(0, GENRE_MOVIE_SLOTS);
-  const genreTvSurvivors = genreTv
-    .filter(c => !usedIds.has(`${c.mediaType}_${c.id}`))
-    .slice(0, GENRE_TV_SLOTS);
-
-  const survivors = [
-    ...franchiseMovieSurvivors,
-    ...franchiseTvSurvivors,
-    ...genreMovieSurvivors,
-    ...genreTvSurvivors
-  ];
-
-  const enriched = await Promise.all(survivors.map(c => enrichCandidate(c)));
-
-  const pass2 = enriched.map(c => ({
-    ...c,
-    _score: scoreCandidate(
-      genreIds,
-      castIds,
-      keywordIds,
-      collectionId,
-      {
-        genreIds:     c.genreIds     || new Set(),
-        castIds:      c.castIds      || new Set(),
-        keywordIds:   c.keywordIds   || new Set(),
-        collectionId: c.collectionId ?? null,
-        popularity:   c.popularity   || 0,
-        voteAverage:  c.voteAverage  || 0,
-        voteCount:    c.voteCount    || 0
-      },
-      c._isFranchise === true && c.mediaType === 'tv'
-    )
-  }));
-
-  pass2.sort((a, b) => b._score - a._score);
-  return pass2.slice(0, finalCount);
 }

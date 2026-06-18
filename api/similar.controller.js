@@ -1,16 +1,11 @@
 import MoviesController from './movies.controller.js';
-import { rankCandidates, scoreCandidate } from '../algorithms/contentBasedSimilarity.js';
+import { scoreCandidate } from '../algorithms/contentBasedSimilarity.js';
 
 const similarCache   = new Map();
 const CACHE_TTL_MS   = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_CACHE_SIZE = 300;
 
 const TOP_CAST_LIMIT = 15;
-
-const KEYWORD_MOVIE_SLOTS = 15;
-const KEYWORD_TV_SLOTS    = 20;
-const GENRE_MOVIE_SLOTS   = 10;
-const GENRE_TV_SLOTS      = 10;
 
 async function fetchKeywordIds(mediaId, mediaType) {
   try {
@@ -36,16 +31,6 @@ async function fetchCastIds(mediaId, mediaType) {
   } catch {
     return new Set();
   }
-}
-
-async function enrichCandidate(candidate) {
-  const [keywordIds, castIds] = await Promise.all([
-    candidate.keywordIds instanceof Set
-      ? Promise.resolve(candidate.keywordIds)
-      : fetchKeywordIds(candidate.id, candidate.mediaType),
-    fetchCastIds(candidate.id, candidate.mediaType)
-  ]);
-  return { ...candidate, keywordIds, castIds };
 }
 
 function normaliseItem(item, mediaType) {
@@ -121,7 +106,7 @@ async function fetchDiscoverCandidatesByKeywords(keywordIds, mediaType, sourceId
 
   const pageResults = await Promise.all(fetchPromises);
 
-  const seen    = new Set();
+  const seen       = new Set();
   const candidates = [];
 
   for (const { results = [] } of pageResults) {
@@ -138,8 +123,8 @@ async function fetchDiscoverCandidatesByKeywords(keywordIds, mediaType, sourceId
 }
 
 /**
- * @param {object[]}    recommendations
- * @param {number}      seedLimit
+ * @param {object[]} recommendations
+ * @param {number}   seedLimit
  * @returns {Promise<Set<number>>}
  */
 async function seedKeywordsFromRecommendations(recommendations, seedLimit = 4) {
@@ -159,7 +144,7 @@ async function seedKeywordsFromRecommendations(recommendations, seedLimit = 4) {
 
 /**
  * @param {number[]} companyIds
- * @param {number}   sourceIdInt - excluded from results
+ * @param {number}   sourceIdInt
  * @returns {Promise<object[]>}
  */
 async function fetchCompanyTvShows(companyIds, sourceIdInt) {
@@ -188,9 +173,9 @@ export default class SimilarController {
         return res.status(400).json({ error: 'Valid media ID is required' });
       }
 
-      const cacheKey  = `${mediaType}_${mediaId}`;
-      const cached    = similarCache.get(cacheKey);
-      const nowMs     = Date.now();
+      const cacheKey = `${mediaType}_${mediaId}`;
+      const cached   = similarCache.get(cacheKey);
+      const nowMs    = Date.now();
 
       if (cached && nowMs - cached.timestamp < CACHE_TTL_MS) {
         return res.json({ results: cached.results });
@@ -255,12 +240,12 @@ export default class SimilarController {
         allCandidates.push(c);
       };
 
-      for (const c of companyTvCandidates)       addCandidate(c, true);
-      for (const c of kwMovieCandidates)         addCandidate(c, true);
-      for (const c of kwTvCandidates)            addCandidate(c, true);
-      for (const c of recommendationCandidates)  addCandidate(c, true);
-      for (const c of movieDiscoverCandidates)   addCandidate(c, false);
-      for (const c of tvDiscoverCandidates)      addCandidate(c, false);
+      for (const c of companyTvCandidates)      addCandidate(c, true);
+      for (const c of kwMovieCandidates)        addCandidate(c, true);
+      for (const c of kwTvCandidates)           addCandidate(c, true);
+      for (const c of recommendationCandidates) addCandidate(c, true);
+      for (const c of movieDiscoverCandidates)  addCandidate(c, false);
+      for (const c of tvDiscoverCandidates)     addCandidate(c, false);
 
       if (allCandidates.length === 0) return res.json({ results: [] });
 
@@ -268,86 +253,43 @@ export default class SimilarController {
       const oppositeTypeCount = mediaType === 'movie' ? 4 : 6;
       const totalFinal        = sameTypeCount + oppositeTypeCount;
 
-      const ranked = await rankCandidates(
-        {
-          genreIds:     sourceGenreIds,
-          castIds:      sourceCastIds,
-          keywordIds:   effectiveKeywordIds,
-          collectionId: sourceCollectionId
-        },
-        allCandidates,
-        franchiseCandidateIds,
-        enrichCandidate,
-        totalFinal
-      );
+      // Score every candidate using only signals already present in
+      // discover/recommendation responses. No per-candidate enrichment
+      // fetches needed — cast and keyword scoring resolve to 0 via
+      // empty Sets, but keyword sourcing above still drives candidate
+      // pool thematic relevance.
+      const scored = allCandidates.map(c => ({
+        ...c,
+        _score: scoreCandidate(
+          sourceGenreIds,
+          new Set(),
+          new Set(),
+          sourceCollectionId,
+          {
+            genreIds:     c.genreIds     || new Set(),
+            castIds:      new Set(),
+            keywordIds:   new Set(),
+            collectionId: c.collectionId ?? null,
+            popularity:   c.popularity   || 0,
+            voteAverage:  c.voteAverage  || 0,
+            voteCount:    c.voteCount    || 0
+          },
+          franchiseCandidateIds.has(`${c.mediaType}_${c.id}`) && c.mediaType === 'tv'
+        )
+      }));
 
-      // Enforce type split: guarantee oppositeTypeCount cross-type results
-      const oppositeType = mediaType === 'movie' ? 'tv' : 'movie';
-      const CROSS_TYPE_FLOOR = oppositeTypeCount;
+      scored.sort((a, b) => b._score - a._score);
 
-      const rankedOppositeCount = ranked.filter(c => c.mediaType === oppositeType).length;
+      // Interleave: franchise items first (movies then TV alternating),
+      // genre/popularity items after.
+      const franchiseMovies = scored
+        .filter(c => franchiseCandidateIds.has(`${c.mediaType}_${c.id}`) && c.mediaType === 'movie');
 
-      if (rankedOppositeCount < CROSS_TYPE_FLOOR) {
-        const rankedIds       = new Set(ranked.map(c => `${c.mediaType}_${c.id}`));
-        const missingOpposite = allCandidates
-          .filter(c =>
-            c.mediaType === oppositeType &&
-            franchiseCandidateIds.has(`${oppositeType}_${c.id}`) &&
-            !rankedIds.has(`${c.mediaType}_${c.id}`)
-          )
-          .slice(0, CROSS_TYPE_FLOOR - rankedOppositeCount);
+      const franchiseTv = scored
+        .filter(c => franchiseCandidateIds.has(`${c.mediaType}_${c.id}`) && c.mediaType === 'tv');
 
-        if (missingOpposite.length > 0) {
-          const enrichedMissing = await Promise.all(missingOpposite.map(c => enrichCandidate(c)));
-
-          const scoredMissing = enrichedMissing.map(c => ({
-            ...c,
-            _score: scoreCandidate(
-              sourceGenreIds,
-              sourceCastIds,
-              effectiveKeywordIds,
-              sourceCollectionId,
-              {
-                genreIds:     c.genreIds     || new Set(),
-                castIds:      c.castIds      || new Set(),
-                keywordIds:   c.keywordIds   || new Set(),
-                collectionId: c.collectionId ?? null,
-                popularity:   c.popularity   || 0,
-                voteAverage:  c.voteAverage  || 0,
-                voteCount:    c.voteCount    || 0
-              },
-              c._isFranchise === true && c.mediaType === 'tv'
-            )
-          }));
-
-          const sameTypeInRanked = ranked
-            .map((c, i) => ({ c, i }))
-            .filter(({ c }) => c.mediaType !== oppositeType)
-            .sort((a, b) => a.c._score - b.c._score);
-
-          const slotsToFree    = Math.min(scoredMissing.length, sameTypeInRanked.length);
-          const indicesToRemove = new Set(
-            sameTypeInRanked.slice(0, slotsToFree).map(({ i }) => i)
-          );
-
-          const base = ranked.filter((_, i) => !indicesToRemove.has(i));
-          ranked.length = 0;
-          ranked.push(...base, ...scoredMissing);
-        }
-      }
-
-      // Interleave: franchise items first (movies then TV alternating), genre items after
-      const franchiseMovies = ranked
-        .filter(c => franchiseCandidateIds.has(`${c.mediaType}_${c.id}`) && c.mediaType === 'movie')
-        .sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
-
-      const franchiseTv = ranked
-        .filter(c => franchiseCandidateIds.has(`${c.mediaType}_${c.id}`) && c.mediaType === 'tv')
-        .sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
-
-      const otherRanked = ranked
-        .filter(c => !franchiseCandidateIds.has(`${c.mediaType}_${c.id}`))
-        .sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
+      const otherRanked = scored
+        .filter(c => !franchiseCandidateIds.has(`${c.mediaType}_${c.id}`));
 
       const franchiseInterleaved = [];
       const maxFranchiseLen = Math.max(franchiseMovies.length, franchiseTv.length);
@@ -358,7 +300,7 @@ export default class SimilarController {
 
       const results = [...franchiseInterleaved, ...otherRanked]
         .slice(0, totalFinal)
-        .map(({ _score, _pass1Score, _isFranchise, genreIds, castIds, keywordIds, ...clean }) => ({
+        .map(({ _score, _isFranchise, genreIds, castIds, keywordIds, ...clean }) => ({
           ...clean,
           genre_ids:    [...(genreIds || [])],
           vote_average: clean.voteAverage,
