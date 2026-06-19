@@ -306,18 +306,18 @@ export default class SimilarController {
       //   2. Convergence bonus for candidates appearing in multiple buckets
       //   3. isFranchiseTv boost retained for TV candidates in non-genre tiers
       const scored = allCandidates.map(c => {
-        const tier      = resolveTier(c.buckets);
+        const tier          = resolveTier(c.buckets);
         const isFranchiseTv = tier !== 'genre' && c.mediaType === 'tv';
 
         const base = scoreCandidate(
           sourceGenreIds,
-          new Set(),
-          new Set(),
+          new Set(),            // cast: no per-candidate fetch, intentional
+          effectiveKeywordIds,  // source keywords — non-zero overlap when candidate has keywordIds
           sourceCollectionId,
           {
             genreIds:     c.genreIds     || new Set(),
             castIds:      new Set(),
-            keywordIds:   new Set(),
+            keywordIds:   c.keywordIds   || new Set(),
             collectionId: c.collectionId ?? null,
             popularity:   c.popularity   || 0,
             voteAverage:  c.voteAverage  || 0,
