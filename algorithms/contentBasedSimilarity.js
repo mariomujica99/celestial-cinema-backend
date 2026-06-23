@@ -1,8 +1,8 @@
 const WEIGHTS = {
-  genre:      0.26,
+  genre:      0.34,
   cast:       0.20,
-  keyword:    0.46,
-  popularity: 0.08
+  keyword:    0.42,
+  popularity: 0.04
 };
 
 /**
@@ -57,7 +57,7 @@ export function scoreCandidate(
     WEIGHTS.keyword    * kwScore             +
     WEIGHTS.popularity * popularityComponent;
 
-  // Collection match: hard 2.5× multiplier on the full score.
+  // Collection match: hard 2.5x multiplier on the full score.
   // This is the strongest signal — same franchise trumps everything.
   const inCollection =
     sourceCollectionId !== null &&
@@ -68,4 +68,29 @@ export function scoreCandidate(
 
   // TV franchise boost retained as before
   return isFranchiseTv ? afterCollection * 1.35 : afterCollection;
+}
+
+/**
+ * Pass-1 relevance gate: does this candidate share at least one genre ID
+ * with the source? Used to drop genre-irrelevant noise (e.g. a sitcom
+ * surfacing for a superhero movie via a loose recommendation/popularity
+ * signal) before it ever reaches scoring.
+ *
+ * Candidates sourced from the collection or franchise buckets (company /
+ * keyword / recommendation) are exempt — "same saga/universe" can matter
+ * even when TMDB's genre tags don't line up (e.g. animated spinoff vs
+ * live-action source).
+ *
+ * @param {Set<number>} sourceGenreIds
+ * @param {Set<number>} candidateGenreIds
+ * @param {boolean}     isExempt - true for collection/company/keyword/recommendation buckets
+ * @returns {boolean}
+ */
+export function passesGenreFloor(sourceGenreIds, candidateGenreIds, isExempt) {
+  if (isExempt) return true;
+  if (!candidateGenreIds || candidateGenreIds.size === 0) return false;
+  for (const id of candidateGenreIds) {
+    if (sourceGenreIds.has(id)) return true;
+  }
+  return false;
 }

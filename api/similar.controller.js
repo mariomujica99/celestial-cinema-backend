@@ -1,5 +1,5 @@
 import MoviesController from './movies.controller.js';
-import { scoreCandidate } from '../algorithms/contentBasedSimilarity.js';
+import { scoreCandidate, passesGenreFloor } from '../algorithms/contentBasedSimilarity.js';
 
 const similarCache   = new Map();
 const CACHE_TTL_MS   = 24 * 60 * 60 * 1000; // 24 hours
@@ -8,13 +8,18 @@ const MAX_CACHE_SIZE = 300;
 const TOP_CAST_LIMIT = 15;
 
 // Sourcing tier multipliers — applied after base scoreCandidate.
-// Order of priority: company > keyword > recommendation > genre.
+// Order of priority: collection > company > keyword > recommendation > genre.
 const TIER_MULTIPLIERS = {
+  collection:     1.50,
   company:        1.40,
   keyword:        1.25,
   recommendation: 1.15,
   genre:          1.00
 };
+
+// Buckets exempt from the pass-1 genre-overlap floor — "same saga/universe"
+// is a strong enough signal on its own even without genre overlap.
+const GENRE_FLOOR_EXEMPT_BUCKETS = new Set(['collection', 'company', 'keyword', 'recommendation']);
 
 // Convergence boost per additional bucket beyond the first.
 // Capped at 3 extra buckets (+0.12 max) to stay within the 0-1 score scale.
@@ -176,13 +181,35 @@ async function fetchCompanyTvShows(companyIds, sourceIdInt) {
 }
 
 /**
+ * Fetches the sibling movies of the source's TMDB collection.
+ * Movie-only — TMDB has no equivalent "collection" concept for TV;
+ * TV's franchise signal is covered by the existing company bucket.
+ * Single conditional call: only fires when the source has a collection.
+ *
+ * @param {number} collectionId
+ * @param {number} sourceIdInt - excluded from results
+ * @returns {Promise<object[]>}
+ */
+async function fetchCollectionMembers(collectionId, sourceIdInt) {
+  try {
+    const data = await MoviesController.makeAPICall(`/collection/${collectionId}`);
+    return (data.parts || [])
+      .filter(item => item.id !== sourceIdInt)
+      .map(item => normaliseItem(item, 'movie'));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Resolves the highest-priority tier for a candidate given its sourcing buckets.
- * Priority: company > keyword > recommendation > genre.
+ * Priority: collection > company > keyword > recommendation > genre.
  *
  * @param {Set<string>} buckets
  * @returns {string}
  */
 function resolveTier(buckets) {
+  if (buckets.has('collection'))     return 'collection';
   if (buckets.has('company'))        return 'company';
   if (buckets.has('keyword'))        return 'keyword';
   if (buckets.has('recommendation')) return 'recommendation';
@@ -253,13 +280,19 @@ export default class SimilarController {
         .map(c => c.id)
         .slice(0, 3);
 
+      // Collection fetch is conditional and movie-only — costs nothing
+      // for TV sources or standalone movies with no collection.
       const [
+        collectionCandidates,
         companyTvCandidates,
         movieDiscoverCandidates,
         tvDiscoverCandidates,
         kwMovieCandidates,
         kwTvCandidates
       ] = await Promise.all([
+        mediaType === 'movie' && sourceCollectionId !== null
+          ? fetchCollectionMembers(sourceCollectionId, sourceIdInt)
+          : Promise.resolve([]),
         companyIds.length > 0
           ? fetchCompanyTvShows(companyIds, sourceIdInt)
           : Promise.resolve([]),
@@ -279,11 +312,26 @@ export default class SimilarController {
         const key = `${c.mediaType}_${c.id}`;
         if (candidateMap.has(key)) {
           candidateMap.get(key).buckets.add(bucket);
+          // Collection data is authoritative — overwrite collectionId
+          // if this candidate is now confirmed via the collection fetch.
+          if (bucket === 'collection') {
+            candidateMap.get(key).collectionId = c.collectionId ?? sourceCollectionId;
+          }
         } else {
-          candidateMap.set(key, { ...c, buckets: new Set([bucket]) });
+          const entry = { ...c, buckets: new Set([bucket]) };
+          // Members returned by /collection/{id} are confirmed siblings —
+          // stamp the source's own collectionId onto them directly since
+          // belongs_to_collection on collection /parts items already
+          // matches, but this guarantees the match even if TMDB data is
+          // inconsistent on an individual part.
+          if (bucket === 'collection') {
+            entry.collectionId = sourceCollectionId;
+          }
+          candidateMap.set(key, entry);
         }
       };
 
+      for (const c of collectionCandidates)     registerCandidate(c, 'collection');
       for (const c of companyTvCandidates)      registerCandidate(c, 'company');
       for (const c of kwMovieCandidates)        registerCandidate(c, 'keyword');
       for (const c of kwTvCandidates)           registerCandidate(c, 'keyword');
@@ -291,7 +339,15 @@ export default class SimilarController {
       for (const c of movieDiscoverCandidates)  registerCandidate(c, 'genre');
       for (const c of tvDiscoverCandidates)     registerCandidate(c, 'genre');
 
-      const allCandidates = Array.from(candidateMap.values());
+      // Pass-1 genre floor: drop candidates with zero genre overlap with
+      // the source unless they're in an exempt (franchise-signal) bucket.
+      // Stops genre-irrelevant noise (e.g. a sitcom surfacing for a
+      // superhero movie via a loose recommendation/popularity signal)
+      // from ever reaching scoring.
+      const allCandidates = Array.from(candidateMap.values()).filter(c => {
+        const isExempt = [...c.buckets].some(b => GENRE_FLOOR_EXEMPT_BUCKETS.has(b));
+        return passesGenreFloor(sourceGenreIds, c.genreIds, isExempt);
+      });
 
       if (allCandidates.length === 0) return res.json({ results: [] });
 
@@ -300,11 +356,14 @@ export default class SimilarController {
       const totalFinal        = sameTypeCount + oppositeTypeCount;
 
       // Score every candidate using signals already present in
-      // discover/recommendation responses — no per-candidate enrichment
-      // fetches needed. Precision improvements come from:
+      // discover/recommendation/collection responses — no per-candidate
+      // enrichment fetches needed. Precision comes from:
       //   1. Tier multiplier based on highest-priority sourcing bucket
+      //      (collection > company > keyword > recommendation > genre)
       //   2. Convergence bonus for candidates appearing in multiple buckets
       //   3. isFranchiseTv boost retained for TV candidates in non-genre tiers
+      //   4. Real collectionId data now flows into scoreCandidate's 2.5x
+      //      in-score collection multiplier (previously always null)
       const scored = allCandidates.map(c => {
         const tier          = resolveTier(c.buckets);
         const isFranchiseTv = tier !== 'genre' && c.mediaType === 'tv';
@@ -334,13 +393,18 @@ export default class SimilarController {
 
       scored.sort((a, b) => b._score - a._score);
 
-      // Interleave: non-genre tier items first (movies then TV alternating),
-      // genre-only items after.
+      // Shape output: collection siblings first (always on top, per product
+      // decision), then franchise tiers (company/keyword/recommendation)
+      // interleaved by media type, then genre-only items.
+      const collectionTier = scored
+        .filter(c => c._tier === 'collection')
+        .sort((a, b) => b._score - a._score);
+
       const tieredMovies = scored
-        .filter(c => c._tier !== 'genre' && c.mediaType === 'movie');
+        .filter(c => c._tier !== 'genre' && c._tier !== 'collection' && c.mediaType === 'movie');
 
       const tieredTv = scored
-        .filter(c => c._tier !== 'genre' && c.mediaType === 'tv');
+        .filter(c => c._tier !== 'genre' && c._tier !== 'collection' && c.mediaType === 'tv');
 
       const genreOnly = scored
         .filter(c => c._tier === 'genre');
@@ -352,7 +416,7 @@ export default class SimilarController {
         if (tieredTv[i])     tieredInterleaved.push(tieredTv[i]);
       }
 
-      const results = [...tieredInterleaved, ...genreOnly]
+      const results = [...collectionTier, ...tieredInterleaved, ...genreOnly]
         .slice(0, totalFinal)
         .map(({ _score, _tier, buckets, genreIds, castIds, keywordIds, ...clean }) => ({
           ...clean,
