@@ -19,7 +19,7 @@ const TIER_MULTIPLIERS = {
 
 // Buckets exempt from the pass-1 genre-overlap floor — "same saga/universe"
 // is a strong enough signal on its own even without genre overlap.
-const GENRE_FLOOR_EXEMPT_BUCKETS = new Set(['collection', 'company', 'keyword', 'recommendation']);
+const GENRE_FLOOR_EXEMPT_BUCKETS = new Set(['collection', 'company']);
 
 // Convergence boost per additional bucket beyond the first.
 // Capped at 3 extra buckets (+0.12 max) to stay within the 0-1 score scale.
