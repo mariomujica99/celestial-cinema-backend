@@ -16,7 +16,7 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
 - Genre Discovery: Discover movies and TV shows by genre ID
 - Watch Providers: US streaming, rental, and purchase options for movies and TV shows
 - Videos: YouTube trailer lists for movies and TV shows
-- Similar Media: Related movies and TV shows per title
+- Similar Media (raw TMDB passthrough): Related movies and TV shows per title
 - Popular People: Trending person discovery
 
 #### Review System
@@ -32,6 +32,13 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
 - Check Endpoint: Returns whether a specific user/media combination is saved
 - Remove by ID: Direct deletion by MongoDB ObjectId
 - Global List: Shared watchlist sorted by most recently added
+
+#### Recommendation Engine (Similar Media)
+- Multi-Source Candidates: Sourced from TMDB discover, recommendations, keyword search, production company, and collection endpoints in parallel, deduplicated across sources
+- Content-Based Scoring: Jaccard similarity on genre and keyword sets, cast overlap, and a popularity/quality tiebreaker, combined by a weighted sum
+- Franchise Boosting: Same-collection matches get a 2.5x score multiplier; franchise-tier TV candidates get an additional 1.35x boost
+- Relevance Floor: Candidates with zero genre overlap are dropped unless sourced from a collection/company/keyword/recommendation bucket
+- Response Caching: Results cached in-memory per media item for 24 hours, capped at 300 entries with oldest-first eviction
 
 #### Security and Performance
 - CORS: Open for frontend use
@@ -80,18 +87,19 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
 **Movie Review Body**
 ```json
 {
-  "movieId": 550,
+  "mediaId": 550,
   "user": "John",
   "review": "Great film.",
   "rating": 9,
   "mediaType": "movie"
 }
 ```
+`movieId` is also accepted for backward compatibility; new integrations should use `mediaId`.
  
 **Show Review Body**
 ```json
 {
-  "movieId": 1399,
+  "mediaId": 1399,
   "user": "Jane",
   "review": "Best episode yet.",
   "rating": 10,
@@ -120,9 +128,13 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
   "title": "Fight Club",
   "year": 1999,
   "mediaType": "movie",
-  "posterPath": "/path.jpg"
+  "posterPath": "/path.jpg",
+  "voteAverage": 8.4,
+  "runtime": 139,
+  "contentRating": "R"
 }
 ```
+`voteAverage`, `runtime`, and `contentRating` are optional.
 
 ---
 
@@ -147,7 +159,7 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
 | GET | `/credits/:id` | Movie cast and crew |
 | GET | `/watch-providers/:id` | US streaming/rental/purchase options for a movie |
 | GET | `/videos/:id` | YouTube trailers for a movie |
-| GET | `/similar/:id` | Similar movies |
+| GET | `/similar/:id` | Similar movies (raw TMDB passthrough) |
 | GET | `/genre/:genreId` | Discover movies by genre |
 | GET | `/tv/details/:id` | TV show details with content ratings and external IDs appended |
 | GET | `/tv/credits/:id` | TV episode-level cast and crew |
@@ -156,11 +168,19 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
 | GET | `/tv/season/:id/:season` | Episodes for a specific season |
 | GET | `/tv/watch-providers/:id` | US streaming/rental/purchase options for a TV show |
 | GET | `/tv/videos/:id` | YouTube trailers for a TV show |
-| GET | `/tv/similar/:id` | Similar TV shows |
+| GET | `/tv/similar/:id` | Similar TV shows (raw TMDB passthrough) |
 | GET | `/tv/genre/:genreId` | Discover TV shows by genre |
 | GET | `/person/:id` | Person biography and details |
 | GET | `/person/:id/credits` | Combined movie and TV filmography |
 | GET | `/people/popular` | Popular people |
+
+### Similar Media API (`/api/v1/similar`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/:mediaType/:id` | Content-based recommendations for a movie or TV show (`mediaType` is `movie` or `tv`) |
+
+Returns up to 10 ranked results, mixing same-type and opposite-type media, led by any collection/franchise matches. Cached server-side for 24 hours per media item.
 
 ## Database Schema
 
@@ -191,6 +211,9 @@ This is a Node.js/Express RESTful API server that powers the Celestial Cinema we
   year: Number,
   mediaType: String,      // "movie" | "tv"
   posterPath: String,
+  voteAverage: Number,    // nullable
+  runtime: Number,        // nullable
+  contentRating: String,  // nullable
   addedAt: Date
 }
 ```
@@ -230,6 +253,7 @@ Client Response
 - MongoDB indexes on `mediaId` and `createdAt` for fast review queries
 - Connection pooling (max 50 connections)
 - Categorized search uses `Promise.all` to run three TMDB queries in parallel
+- Similar-media recommendations cached in-memory per item for 24 hours (300-entry cap)
 
 ## Author
 
