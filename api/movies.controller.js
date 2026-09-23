@@ -52,6 +52,16 @@ export default class MoviesController {
     }
   }
 
+  static async apiGetTrendingAll(req, res) {
+    try {
+      const page = req.query.page || 1;
+      const data = await MoviesController.makeAPICall(`/trending/all/day?page=${page}`);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async apiGetPopular(req, res) {
     try {
       const page = req.query.page || 1;
