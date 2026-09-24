@@ -62,8 +62,21 @@ export default class MoviesController {
     }
   }
 
-  static sortByPopularity(results) {
-    return [...(results || [])].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+  static matchTier(item, query) {
+    const text = (item.title || item.name || '').toLowerCase();
+    const q = query.toLowerCase();
+    if (text === q) return 0;
+    if (text.startsWith(q)) return 1;
+    if (text.includes(q)) return 2;
+    return 3;
+  }
+
+  static sortByRelevanceAndPopularity(results, query) {
+    return [...(results || [])].sort((a, b) => {
+      const tierDiff = MoviesController.matchTier(a, query) - MoviesController.matchTier(b, query);
+      if (tierDiff !== 0) return tierDiff;
+      return (b.popularity || 0) - (a.popularity || 0);
+    });
   }
 
   static async apiGetPopular(req, res) {
@@ -220,9 +233,9 @@ export default class MoviesController {
       ]);
 
       res.json({
-        movies:      MoviesController.sortByPopularity(movieData.results),
-        tvShows:     MoviesController.sortByPopularity(tvData.results),
-        people:      MoviesController.sortByPopularity(personData.results),
+        movies:      MoviesController.sortByRelevanceAndPopularity(movieData.results, query),
+        tvShows:     MoviesController.sortByRelevanceAndPopularity(tvData.results, query),
+        people:      MoviesController.sortByRelevanceAndPopularity(personData.results, query),
         movieCount:  movieData.total_results  || 0,
         tvCount:     tvData.total_results     || 0,
         peopleCount: personData.total_results || 0
