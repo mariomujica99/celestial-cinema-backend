@@ -62,20 +62,38 @@ export default class MoviesController {
     }
   }
 
+  static NOTABLE_POPULARITY_THRESHOLD = 5;
+
   static matchTier(item, query) {
     const text = (item.title || item.name || '').toLowerCase();
     const q = query.toLowerCase();
-    if (text === q) return 0;
-    if (text.startsWith(q)) return 1;
-    if (text.includes(q)) return 2;
-    return 3;
+    let tier;
+    if (text === q) tier = 0;
+    else if (text.startsWith(q)) tier = 1;
+    else if (text.includes(q)) tier = 2;
+    else tier = 3;
+
+    if (tier <= 1 && (item.popularity || 0) < MoviesController.NOTABLE_POPULARITY_THRESHOLD) {
+      tier = 2;
+    }
+    return tier;
+  }
+
+  static recencyBoost(item) {
+    const dateStr = item.release_date || item.first_air_date || '';
+    if (!dateStr) return 0;
+    const year = new Date(dateStr).getFullYear();
+    const currentYear = new Date().getFullYear();
+    return year >= currentYear - 1 ? 20 : 0;
   }
 
   static sortByRelevanceAndPopularity(results, query) {
     return [...(results || [])].sort((a, b) => {
       const tierDiff = MoviesController.matchTier(a, query) - MoviesController.matchTier(b, query);
       if (tierDiff !== 0) return tierDiff;
-      return (b.popularity || 0) - (a.popularity || 0);
+      const scoreA = (a.popularity || 0) + MoviesController.recencyBoost(a);
+      const scoreB = (b.popularity || 0) + MoviesController.recencyBoost(b);
+      return scoreB - scoreA;
     });
   }
 
