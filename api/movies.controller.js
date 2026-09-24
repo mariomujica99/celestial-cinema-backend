@@ -62,6 +62,10 @@ export default class MoviesController {
     }
   }
 
+  static sortByPopularity(results) {
+    return [...(results || [])].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+  }
+
   static async apiGetPopular(req, res) {
     try {
       const page = req.query.page || 1;
@@ -216,9 +220,9 @@ export default class MoviesController {
       ]);
 
       res.json({
-        movies:      movieData.results  || [],
-        tvShows:     tvData.results     || [],
-        people:      personData.results || [],
+        movies:      MoviesController.sortByPopularity(movieData.results),
+        tvShows:     MoviesController.sortByPopularity(tvData.results),
+        people:      MoviesController.sortByPopularity(personData.results),
         movieCount:  movieData.total_results  || 0,
         tvCount:     tvData.total_results     || 0,
         peopleCount: personData.total_results || 0
