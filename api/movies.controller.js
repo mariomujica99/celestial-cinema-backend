@@ -548,6 +548,40 @@ export default class MoviesController {
     }
   }
 
+  static formatBackdrops(backdrops) {
+    return (backdrops || []).map(backdrop => ({
+      file_path: backdrop.file_path,
+      width: backdrop.width,
+      height: backdrop.height
+    }));
+  }
+
+  static async apiGetMovieImages(req, res) {
+    try {
+      const movieId = req.params.id;
+      if (!movieId || isNaN(movieId)) {
+        return res.status(400).json({ error: 'Valid movie ID is required' });
+      }
+      const data = await MoviesController.makeAPICall(`/movie/${movieId}/images`);
+      res.json({ backdrops: MoviesController.formatBackdrops(data.backdrops) });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetTVImages(req, res) {
+    try {
+      const tvId = req.params.id;
+      if (!tvId || isNaN(tvId)) {
+        return res.status(400).json({ error: 'Valid TV ID is required' });
+      }
+      const data = await MoviesController.makeAPICall(`/tv/${tvId}/images`);
+      res.json({ backdrops: MoviesController.formatBackdrops(data.backdrops) });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async apiGetSimilarMovies(req, res) {
     try {
       const movieId = req.params.id;
