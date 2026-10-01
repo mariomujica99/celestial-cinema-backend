@@ -4,6 +4,16 @@ dotenv.config()
 const API_KEY = process.env['TMDB_API_KEY'];
 const BASE_URL = 'https://api.themoviedb.org/3';
 
+const HERO_CACHE_MS = 60 * 60 * 1000;
+const BOX_OFFICE_CACHE_MS = 60 * 60 * 1000;
+const GENRE_BACKDROPS_CACHE_MS = 24 * 60 * 60 * 1000;
+const HERO_CANDIDATE_LIMIT = 16;
+const HERO_SLIDE_LIMIT = 8;
+const BOX_OFFICE_WINDOW_DAYS = 90;
+const BOX_OFFICE_CANDIDATE_LIMIT = 12;
+const BOX_OFFICE_RESULT_LIMIT = 10;
+const MAX_GENRE_BACKDROP_IDS = 20;
+
 export default class MoviesController {
   static async makeAPICall(endpoint) {
     try {
@@ -20,6 +30,46 @@ export default class MoviesController {
       console.error('API call failed:', error);
       throw new Error(`API call failed: ${error.message}`);
     }
+  }
+
+  static responseCache = new Map();
+
+  static async getCached(cacheKey, ttlMs, loadData) {
+    const cachedEntry = MoviesController.responseCache.get(cacheKey);
+    if (cachedEntry && cachedEntry.expiresAt > Date.now()) return cachedEntry.data;
+
+    const freshData = await loadData();
+    const isEmpty = Array.isArray(freshData)
+      ? freshData.length === 0
+      : Object.keys(freshData).length === 0;
+
+    if (!isEmpty) {
+      MoviesController.responseCache.set(cacheKey, {
+        data: freshData,
+        expiresAt: Date.now() + ttlMs
+      });
+    }
+    return freshData;
+  }
+
+  static collectFulfilledValues(settledResults) {
+    return settledResults.reduce((values, result) => {
+      if (result.status === 'rejected') {
+        console.error('Parallel TMDB call failed:', result.reason);
+      } else if (result.value) {
+        values.push(result.value);
+      }
+      return values;
+    }, []);
+  }
+
+  static parsePageParam(pageParam) {
+    const page = parseInt(pageParam, 10);
+    return page > 0 ? page : 1;
+  }
+
+  static filterYouTubeTrailers(videos) {
+    return (videos || []).filter(video => video.type === 'Trailer' && video.site === 'YouTube');
   }
 
   static async apiGetTrendingWeek(req, res) {
@@ -527,8 +577,7 @@ export default class MoviesController {
         return res.status(400).json({ error: 'Valid movie ID is required' });
       }
       const data = await MoviesController.makeAPICall(`/movie/${movieId}/videos`);
-      const trailers = (data.results || []).filter(v => v.type === 'Trailer' && v.site === 'YouTube');
-      res.json({ results: trailers });
+      res.json({ results: MoviesController.filterYouTubeTrailers(data.results) });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -541,8 +590,7 @@ export default class MoviesController {
         return res.status(400).json({ error: 'Valid TV ID is required' });
       }
       const data = await MoviesController.makeAPICall(`/tv/${tvId}/videos`);
-      const trailers = (data.results || []).filter(v => v.type === 'Trailer' && v.site === 'YouTube');
-      res.json({ results: trailers });
+      res.json({ results: MoviesController.filterYouTubeTrailers(data.results) });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -603,6 +651,209 @@ export default class MoviesController {
       }
       const data = await MoviesController.makeAPICall(`/tv/${tvId}/similar`);
       res.json({ results: data.results || [] });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static pickHeroBackdrop(details) {
+    const textlessBackdrops = (details.images?.backdrops || [])
+      .filter(backdrop => !backdrop.iso_639_1)
+      .sort((a, b) => b.vote_average - a.vote_average);
+    return textlessBackdrops[0]?.file_path || details.backdrop_path || null;
+  }
+
+  static async fetchHeroSlide(item) {
+    const mediaType = item.media_type;
+    const details = await MoviesController.makeAPICall(
+      `/${mediaType}/${item.id}?language=en-US&append_to_response=videos,images` +
+      `&include_image_language=en,null&include_video_language=en,null`
+    );
+    const trailers = MoviesController.filterYouTubeTrailers(details.videos?.results);
+    const backdropPath = MoviesController.pickHeroBackdrop(details);
+    if (trailers.length === 0 || !backdropPath) return null;
+
+    return {
+      id: details.id,
+      mediaType,
+      title: details.title || details.name || '',
+      releaseDate: details.release_date || details.first_air_date || '',
+      voteAverage: details.vote_average ?? null,
+      posterPath: details.poster_path || null,
+      backdropPath,
+      trailers: trailers.map(({ key, name, type, published_at }) => ({ key, name, type, published_at }))
+    };
+  }
+
+  static async loadHeroSlides() {
+    const trending = await MoviesController.makeAPICall('/trending/all/week');
+    const candidates = (trending.results || [])
+      .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
+      .slice(0, HERO_CANDIDATE_LIMIT);
+
+    const settledSlides = await Promise.allSettled(
+      candidates.map(item => MoviesController.fetchHeroSlide(item))
+    );
+    return MoviesController.collectFulfilledValues(settledSlides).slice(0, HERO_SLIDE_LIMIT);
+  }
+
+  static async apiGetHomeHero(req, res) {
+    try {
+      const slides = await MoviesController.getCached(
+        'home-hero',
+        HERO_CACHE_MS,
+        MoviesController.loadHeroSlides
+      );
+      res.json({ results: slides });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static formatDateParam(date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  static buildBoxOfficeDiscoverEndpoint(page) {
+    const today = new Date();
+    const windowStart = new Date(today.getTime() - BOX_OFFICE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    return `/discover/movie?sort_by=revenue.desc&include_adult=false&language=en-US` +
+      `&primary_release_date.gte=${MoviesController.formatDateParam(windowStart)}` +
+      `&primary_release_date.lte=${MoviesController.formatDateParam(today)}&page=${page}`;
+  }
+
+  static async fetchBoxOfficeEntry(movie) {
+    const details = await MoviesController.makeAPICall(`/movie/${movie.id}?language=en-US`);
+    if (!details.revenue) return null;
+
+    return {
+      id: details.id,
+      title: details.title || '',
+      releaseDate: details.release_date || '',
+      runtime: details.runtime ?? null,
+      voteAverage: details.vote_average ?? null,
+      posterPath: details.poster_path || null,
+      overview: details.overview || '',
+      budget: details.budget || 0,
+      revenue: details.revenue
+    };
+  }
+
+  static async loadBoxOfficeEntries() {
+    const discoverData = await MoviesController.makeAPICall(
+      MoviesController.buildBoxOfficeDiscoverEndpoint(1)
+    );
+    const candidates = (discoverData.results || []).slice(0, BOX_OFFICE_CANDIDATE_LIMIT);
+
+    const settledEntries = await Promise.allSettled(
+      candidates.map(movie => MoviesController.fetchBoxOfficeEntry(movie))
+    );
+    return MoviesController.collectFulfilledValues(settledEntries)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, BOX_OFFICE_RESULT_LIMIT);
+  }
+
+  static async apiGetHomeBoxOffice(req, res) {
+    try {
+      const entries = await MoviesController.getCached(
+        'home-box-office',
+        BOX_OFFICE_CACHE_MS,
+        MoviesController.loadBoxOfficeEntries
+      );
+      res.json({ results: entries });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetBoxOffice(req, res) {
+    try {
+      const page = MoviesController.parsePageParam(req.query.page);
+      const data = await MoviesController.makeAPICall(
+        MoviesController.buildBoxOfficeDiscoverEndpoint(page)
+      );
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static parseGenreIds(idsParam) {
+    return String(idsParam || '')
+      .split(',')
+      .filter(genreId => /^\d+$/.test(genreId))
+      .slice(0, MAX_GENRE_BACKDROP_IDS);
+  }
+
+  static async fetchGenreBackdropCandidates(genreId) {
+    const data = await MoviesController.makeAPICall(
+      `/discover/movie?with_genres=${genreId}&sort_by=popularity.desc` +
+      `&vote_count.gte=200&include_adult=false&language=en-US`
+    );
+    return (data.results || [])
+      .filter(movie => movie.backdrop_path)
+      .map(movie => movie.backdrop_path);
+  }
+
+  static async loadGenreBackdrops(genreIds) {
+    const settledCandidates = await Promise.allSettled(
+      genreIds.map(genreId => MoviesController.fetchGenreBackdropCandidates(genreId))
+    );
+
+    const usedBackdrops = new Set();
+    const backdrops = {};
+
+    genreIds.forEach((genreId, index) => {
+      const result = settledCandidates[index];
+      if (result.status === 'rejected') {
+        console.error('Genre backdrop failed:', result.reason);
+        return;
+      }
+      const backdropPath = result.value.find(path => !usedBackdrops.has(path));
+      if (!backdropPath) return;
+
+      usedBackdrops.add(backdropPath);
+      backdrops[genreId] = backdropPath;
+    });
+    return backdrops;
+  }
+
+  static async apiGetHomeGenreBackdrops(req, res) {
+    try {
+      const genreIds = MoviesController.parseGenreIds(req.query.ids);
+      if (genreIds.length === 0) {
+        return res.status(400).json({ error: 'At least one valid genre ID is required' });
+      }
+
+      const backdrops = await MoviesController.getCached(
+        `genre-backdrops:${genreIds.join(',')}`,
+        GENRE_BACKDROPS_CACHE_MS,
+        () => MoviesController.loadGenreBackdrops(genreIds)
+      );
+      res.json({ backdrops });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async apiGetStreaming(req, res) {
+    try {
+      const { providerId } = req.params;
+      const mediaType = req.query.type || 'movie';
+      const page = MoviesController.parsePageParam(req.query.page);
+
+      if (!/^\d+$/.test(providerId)) {
+        return res.status(400).json({ error: 'Valid provider ID is required' });
+      }
+      if (mediaType !== 'movie' && mediaType !== 'tv') {
+        return res.status(400).json({ error: "Type must be 'movie' or 'tv'" });
+      }
+
+      const data = await MoviesController.makeAPICall(
+        `/discover/${mediaType}?with_watch_providers=${providerId}&watch_region=US` +
+        `&with_watch_monetization_types=flatrate&sort_by=popularity.desc&page=${page}`
+      );
+      res.json(data);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

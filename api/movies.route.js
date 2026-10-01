@@ -37,5 +37,10 @@ router.route("/images/:id").get(MoviesCtrl.apiGetMovieImages)
 router.route("/tv/images/:id").get(MoviesCtrl.apiGetTVImages)
 router.route("/similar/:id").get(MoviesCtrl.apiGetSimilarMovies)
 router.route("/tv/similar/:id").get(MoviesCtrl.apiGetSimilarTV)
+router.route("/home/hero").get(MoviesCtrl.apiGetHomeHero)
+router.route("/home/box-office").get(MoviesCtrl.apiGetHomeBoxOffice)
+router.route("/home/genre-backdrops").get(MoviesCtrl.apiGetHomeGenreBackdrops)
+router.route("/box-office").get(MoviesCtrl.apiGetBoxOffice)
+router.route("/streaming/:providerId").get(MoviesCtrl.apiGetStreaming)
 
 export default router
