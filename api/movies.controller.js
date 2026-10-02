@@ -836,11 +836,15 @@ export default class MoviesController {
         return res.status(400).json({ error: 'At least one valid genre ID is required' });
       }
 
+      const cacheKey = `genre-backdrops:${mediaType}:${genreIds.join(',')}`;
       const backdrops = await MoviesController.getCached(
-        `genre-backdrops:${mediaType}:${genreIds.join(',')}`,
+        cacheKey,
         GENRE_BACKDROPS_CACHE_MS,
         () => MoviesController.loadGenreBackdrops(genreIds, mediaType)
       );
+      if (Object.keys(backdrops).length < genreIds.length) {
+        MoviesController.responseCache.delete(cacheKey);
+      }
       res.json({ backdrops });
     } catch (error) {
       res.status(500).json({ error: error.message });
