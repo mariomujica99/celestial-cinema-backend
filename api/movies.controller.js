@@ -12,6 +12,7 @@ const HERO_SLIDE_LIMIT = 8;
 const BOX_OFFICE_WINDOW_DAYS = 90;
 const BOX_OFFICE_CANDIDATE_LIMIT = 12;
 const BOX_OFFICE_RESULT_LIMIT = 10;
+const BOX_OFFICE_MIN_VOTES = 50;
 const MAX_GENRE_BACKDROP_IDS = 20;
 
 export default class MoviesController {
@@ -71,6 +72,10 @@ export default class MoviesController {
   static filterYouTubeTrailers(videos) {
     return (videos || []).filter(video => video.type === 'Trailer' && video.site === 'YouTube');
   }
+
+  static isValidMediaType(mediaType) {
+    return mediaType === 'movie' || mediaType === 'tv';
+  }  
 
   static async apiGetTrendingWeek(req, res) {
     try {
@@ -718,6 +723,7 @@ export default class MoviesController {
     const today = new Date();
     const windowStart = new Date(today.getTime() - BOX_OFFICE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     return `/discover/movie?sort_by=revenue.desc&include_adult=false&language=en-US` +
+      `&vote_count.gte=${BOX_OFFICE_MIN_VOTES}` +
       `&primary_release_date.gte=${MoviesController.formatDateParam(windowStart)}` +
       `&primary_release_date.lte=${MoviesController.formatDateParam(today)}&page=${page}`;
   }
@@ -785,19 +791,19 @@ export default class MoviesController {
       .slice(0, MAX_GENRE_BACKDROP_IDS);
   }
 
-  static async fetchGenreBackdropCandidates(genreId) {
+  static async fetchGenreBackdropCandidates(genreId, mediaType) {
     const data = await MoviesController.makeAPICall(
-      `/discover/movie?with_genres=${genreId}&sort_by=popularity.desc` +
-      `&vote_count.gte=200&include_adult=false&language=en-US`
+      `/discover/${mediaType}?with_genres=${genreId}&sort_by=popularity.desc` +
+      `&vote_count.gte=200&language=en-US`
     );
     return (data.results || [])
-      .filter(movie => movie.backdrop_path)
-      .map(movie => movie.backdrop_path);
+      .filter(item => item.backdrop_path)
+      .map(item => item.backdrop_path);
   }
 
-  static async loadGenreBackdrops(genreIds) {
+  static async loadGenreBackdrops(genreIds, mediaType) {
     const settledCandidates = await Promise.allSettled(
-      genreIds.map(genreId => MoviesController.fetchGenreBackdropCandidates(genreId))
+      genreIds.map(genreId => MoviesController.fetchGenreBackdropCandidates(genreId, mediaType))
     );
 
     const usedBackdrops = new Set();
@@ -820,15 +826,20 @@ export default class MoviesController {
 
   static async apiGetHomeGenreBackdrops(req, res) {
     try {
+      const mediaType = req.query.type || 'movie';
       const genreIds = MoviesController.parseGenreIds(req.query.ids);
+
+      if (!MoviesController.isValidMediaType(mediaType)) {
+        return res.status(400).json({ error: "Type must be 'movie' or 'tv'" });
+      }
       if (genreIds.length === 0) {
         return res.status(400).json({ error: 'At least one valid genre ID is required' });
       }
 
       const backdrops = await MoviesController.getCached(
-        `genre-backdrops:${genreIds.join(',')}`,
+        `genre-backdrops:${mediaType}:${genreIds.join(',')}`,
         GENRE_BACKDROPS_CACHE_MS,
-        () => MoviesController.loadGenreBackdrops(genreIds)
+        () => MoviesController.loadGenreBackdrops(genreIds, mediaType)
       );
       res.json({ backdrops });
     } catch (error) {
@@ -845,7 +856,7 @@ export default class MoviesController {
       if (!/^\d+$/.test(providerId)) {
         return res.status(400).json({ error: 'Valid provider ID is required' });
       }
-      if (mediaType !== 'movie' && mediaType !== 'tv') {
+      if (!MoviesController.isValidMediaType(mediaType)) {
         return res.status(400).json({ error: "Type must be 'movie' or 'tv'" });
       }
 
