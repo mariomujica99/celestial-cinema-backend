@@ -269,6 +269,22 @@ export default class MoviesController {
     }
   }
 
+  static async apiGetTVUpcoming(req, res) {
+    try {
+      const page = MoviesController.parsePageParam(req.query.page);
+      const language = req.query.language || 'en-US';
+      const todayDate = MoviesController.formatDateParam(new Date());
+
+      const data = await MoviesController.makeAPICall(
+        `/discover/tv?first_air_date.gte=${todayDate}&sort_by=popularity.desc` +
+        `&page=${page}&language=${language}`
+      );
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async apiSearchMulti(req, res) {
     try {
       const query = req.query.query;
