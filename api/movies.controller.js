@@ -14,6 +14,8 @@ const BOX_OFFICE_CANDIDATE_LIMIT = 12;
 const BOX_OFFICE_RESULT_LIMIT = 10;
 const BOX_OFFICE_MIN_VOTES = 50;
 const MAX_GENRE_BACKDROP_IDS = 20;
+const YOUTUBE_SHORTS_URL = 'https://www.youtube.com/shorts';
+const SHORTS_CHECK_TIMEOUT_MS = 4000;
 
 export default class MoviesController {
   static async makeAPICall(endpoint) {
@@ -71,6 +73,46 @@ export default class MoviesController {
 
   static filterYouTubeTrailers(videos) {
     return (videos || []).filter(video => video.type === 'Trailer' && video.site === 'YouTube');
+  }
+
+  static filterYouTubeVideos(videos) {
+    return (videos || []).filter(video =>
+      (video.type === 'Trailer' || video.type === 'Teaser') && video.site === 'YouTube'
+    );
+  }
+
+  static shortsCache = new Map();
+
+  static async isYouTubeShort(videoKey) {
+    if (MoviesController.shortsCache.has(videoKey)) {
+      return MoviesController.shortsCache.get(videoKey);
+    }
+
+    try {
+      const response = await fetch(`${YOUTUBE_SHORTS_URL}/${encodeURIComponent(videoKey)}`, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(SHORTS_CHECK_TIMEOUT_MS)
+      });
+      await response.body?.cancel();
+
+      const isShort = response.status === 200;
+      const isRedirect = response.status >= 300 && response.status < 400;
+      if (!isShort && !isRedirect) return false;
+
+      MoviesController.shortsCache.set(videoKey, isShort);
+      return isShort;
+    } catch (error) {
+      console.error('Shorts check failed:', error);
+      return false;
+    }
+  }
+
+  static async prepareMediaVideos(rawVideos) {
+    const videos = MoviesController.filterYouTubeVideos(rawVideos);
+    return Promise.all(videos.map(async video => ({
+      ...video,
+      isVertical: video.type === 'Teaser' && await MoviesController.isYouTubeShort(video.key)
+    })));
   }
 
   static isValidMediaType(mediaType) {
@@ -598,7 +640,7 @@ export default class MoviesController {
         return res.status(400).json({ error: 'Valid movie ID is required' });
       }
       const data = await MoviesController.makeAPICall(`/movie/${movieId}/videos`);
-      res.json({ results: MoviesController.filterYouTubeTrailers(data.results) });
+      res.json({ results: await MoviesController.prepareMediaVideos(data.results) });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -611,7 +653,7 @@ export default class MoviesController {
         return res.status(400).json({ error: 'Valid TV ID is required' });
       }
       const data = await MoviesController.makeAPICall(`/tv/${tvId}/videos`);
-      res.json({ results: MoviesController.filterYouTubeTrailers(data.results) });
+      res.json({ results: await MoviesController.prepareMediaVideos(data.results) });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
