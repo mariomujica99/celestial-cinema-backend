@@ -685,14 +685,14 @@ export default class MoviesController {
     }));
   }
 
-  static filterEnglishOrTextlessPosters(posters) {
-    return (posters || []).filter(poster => !poster.iso_639_1 || poster.iso_639_1 === 'en');
+  static filterEnglishOrTextless(images) {
+    return (images || []).filter(image => !image.iso_639_1 || image.iso_639_1 === 'en');
   }
 
   static formatMediaImages(data) {
     return {
-      backdrops: MoviesController.formatImages(data.backdrops),
-      posters: MoviesController.formatImages(MoviesController.filterEnglishOrTextlessPosters(data.posters))
+      backdrops: MoviesController.formatImages(MoviesController.filterEnglishOrTextless(data.backdrops)),
+      posters: MoviesController.formatImages(MoviesController.filterEnglishOrTextless(data.posters))
     };
   }
 
