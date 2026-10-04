@@ -194,4 +194,34 @@ export default class ReviewsDAO {
       return { error: e }
     }
   }
+
+  static async getAverageRatings(movieIds, tvIds) {
+    try {
+      const mediaMatches = []
+      if (movieIds.length) {
+        mediaMatches.push({ mediaId: { $in: movieIds }, mediaType: { $ne: "tv" } })
+      }
+      if (tvIds.length) {
+        mediaMatches.push({ mediaId: { $in: tvIds }, mediaType: "tv" })
+      }
+
+      const cursor = await reviews.aggregate([
+        { $match: { $or: mediaMatches } },
+        {
+          $group: {
+            _id: {
+              mediaId: "$mediaId",
+              mediaType: { $cond: [{ $eq: ["$mediaType", "tv"] }, "tv", "movie"] }
+            },
+            average: { $avg: "$rating" },
+            count: { $sum: 1 }
+          }
+        }
+      ])
+      return cursor.toArray()
+    } catch (e) {
+      console.error(`Unable to get average ratings: ${e}`)
+      return { error: e }
+    }
+  }
 }

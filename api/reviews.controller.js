@@ -1,4 +1,5 @@
 import ReviewsDAO from "../dao/reviewsDAO.js"
+const MAX_RATINGS_ITEMS = 100
 
 export default class ReviewsController {
   static async apiPostReview(req, res, next) {
@@ -154,6 +155,47 @@ export default class ReviewsController {
     } catch (e) {
       console.log(`api, ${e}`);
       res.status(500).json({ error: e.message });
+    }
+  }
+
+  static async apiGetRatings(req, res, next) {
+    try {
+      const movieIds = []
+      const tvIds = []
+
+      ;(req.query.items || "")
+        .split(",")
+        .slice(0, MAX_RATINGS_ITEMS)
+        .forEach(item => {
+          const [mediaType, rawMediaId] = item.split(":")
+          const mediaId = parseInt(rawMediaId)
+          if (Number.isNaN(mediaId)) return
+          if (mediaType === "tv") tvIds.push(mediaId)
+          if (mediaType === "movie") movieIds.push(mediaId)
+        })
+
+      if (movieIds.length === 0 && tvIds.length === 0) {
+        res.status(400).json({ error: "items is required, e.g. items=movie:550,tv:1399" })
+        return
+      }
+
+      const ratingGroups = await ReviewsDAO.getAverageRatings(movieIds, tvIds)
+      if (ratingGroups.error) {
+        res.status(500).json({ error: "Unable to load ratings" })
+        return
+      }
+
+      const ratings = {}
+      ratingGroups.forEach(group => {
+        ratings[`${group._id.mediaType}:${group._id.mediaId}`] = {
+          average: group.average,
+          count: group.count
+        }
+      })
+      res.json({ ratings })
+    } catch (e) {
+      console.log(`api, ${e}`)
+      res.status(500).json({ error: e.message })
     }
   }
 }
