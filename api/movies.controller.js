@@ -117,15 +117,20 @@ export default class MoviesController {
     })));
   }
 
-  static async getCachedMediaVideos(mediaType, mediaId) {
+  static async getCachedRawVideos(mediaType, mediaId) {
     return MoviesController.getCached(
-      `${mediaType}-videos-${mediaId}`,
+      `${mediaType}-raw-videos-${mediaId}`,
       MEDIA_VIDEOS_CACHE_MS,
       async () => {
         const data = await MoviesController.makeAPICall(`/${mediaType}/${mediaId}/videos`);
-        return MoviesController.prepareMediaVideos(data.results);
+        return MoviesController.filterYouTubeVideos(data.results);
       }
     );
+  }
+
+  static async getMediaVideos(mediaType, mediaId) {
+    const rawVideos = await MoviesController.getCachedRawVideos(mediaType, mediaId);
+    return MoviesController.prepareMediaVideos(rawVideos);
   }
 
   static isValidMediaType(mediaType) {
@@ -653,7 +658,7 @@ export default class MoviesController {
         return res.status(400).json({ error: 'Valid movie ID is required' });
       }
       const data = await MoviesController.makeAPICall(`/movie/${movieId}/videos`);
-      res.json({ results: await MoviesController.getCachedMediaVideos('movie', movieId) });
+      res.json({ results: await MoviesController.getMediaVideos('movie', movieId) });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -666,18 +671,29 @@ export default class MoviesController {
         return res.status(400).json({ error: 'Valid TV ID is required' });
       }
       const data = await MoviesController.makeAPICall(`/tv/${tvId}/videos`);
-      res.json({ results: await MoviesController.getCachedMediaVideos('tv', tvId) });
+      res.json({ results: await MoviesController.getMediaVideos('tv', tvId) });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   }
 
-  static formatBackdrops(backdrops) {
-    return (backdrops || []).map(backdrop => ({
-      file_path: backdrop.file_path,
-      width: backdrop.width,
-      height: backdrop.height
+  static formatImages(images) {
+    return (images || []).map(image => ({
+      file_path: image.file_path,
+      width: image.width,
+      height: image.height
     }));
+  }
+
+  static filterEnglishOrTextlessPosters(posters) {
+    return (posters || []).filter(poster => !poster.iso_639_1 || poster.iso_639_1 === 'en');
+  }
+
+  static formatMediaImages(data) {
+    return {
+      backdrops: MoviesController.formatImages(data.backdrops),
+      posters: MoviesController.formatImages(MoviesController.filterEnglishOrTextlessPosters(data.posters))
+    };
   }
 
   static async apiGetMovieImages(req, res) {
@@ -687,7 +703,7 @@ export default class MoviesController {
         return res.status(400).json({ error: 'Valid movie ID is required' });
       }
       const data = await MoviesController.makeAPICall(`/movie/${movieId}/images`);
-      res.json({ backdrops: MoviesController.formatBackdrops(data.backdrops) });
+      res.json(MoviesController.formatMediaImages(data));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -700,7 +716,7 @@ export default class MoviesController {
         return res.status(400).json({ error: 'Valid TV ID is required' });
       }
       const data = await MoviesController.makeAPICall(`/tv/${tvId}/images`);
-      res.json({ backdrops: MoviesController.formatBackdrops(data.backdrops) });
+      res.json(MoviesController.formatMediaImages(data));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
