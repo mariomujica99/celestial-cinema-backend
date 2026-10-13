@@ -22,6 +22,7 @@ const HALLOWEEN = {
     PSYCH: ['psychological thriller', 'psychopath', 'paranoia', 'mind games'],
     PARANORMAL: ['paranormal investigation', 'ghost hunter', 'exorcism', 'demon'],
     SUPERNATURAL: ['supernatural', 'witch', 'curse', 'occult'],
+    HORROR_SUPERNATURAL: ['ghost', 'haunted house', 'haunting', 'poltergeist', 'paranormal investigation', 'ghost hunter', 'exorcism', 'demon'],    
     SCIFI_SCARE: ['alien', 'creature', 'mutation', 'infection'],
     HORROR_EXCLUDE: ['horror', 'gore'],
   },
@@ -65,6 +66,16 @@ const HALLOWEEN = {
         10541,
         156174
       ],
+      "HORROR_SUPERNATURAL": [
+        162846, 
+        3358, 
+        10224, 
+        3350, 
+        15043, 
+        159939, 
+        2626, 
+        15001
+      ],      
       "SCIFI_SCARE": [
         9951,
         13031,
@@ -229,7 +240,7 @@ const HALLOWEEN = {
       types: ['movie', 'tv'],
       allowToggle: true,
       movieFilter: {
-        keywords: ['SUPERNATURAL', 'HORROR_TV'],
+        keywords: ['SUPERNATURAL', 'HORROR_SUPERNATURAL'],
         keywordOp: 'AND',
         genres: ['Fantasy', 'Horror'],
         genreOp: 'OR',
