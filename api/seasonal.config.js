@@ -71,7 +71,10 @@ const HALLOWEEN = {
         2766,
         4884
       ],
-      "HORROR_EXCLUDE": []
+      "HORROR_EXCLUDE": [
+        342626,
+        10292
+      ]
     }
   },
 
