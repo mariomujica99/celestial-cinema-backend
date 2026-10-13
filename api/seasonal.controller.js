@@ -336,6 +336,23 @@ export default class SeasonalController {
   }
 
   /**
+   * Builds a with_keywords value. IDs inside one group are OR (pipe).
+   * Groups are OR-ed (pipe) by default, or AND-ed (comma) when keywordOp is 'AND'.
+   * AND fails closed: an unresolved group throws instead of silently dropping the requirement.
+   */
+  static buildKeywordClause(keywordGroups, keywordOp, resolvedKeywords) {
+    if (!keywordGroups || keywordGroups.length === 0) return '';
+    const groupNames = typeof keywordGroups === 'string' ? [keywordGroups] : keywordGroups;
+    const groupClauses = groupNames.map(groupName => (resolvedKeywords[groupName] || []).join('|'));
+
+    if (keywordOp !== 'AND') return groupClauses.filter(Boolean).join('|');
+    if (groupClauses.some(clause => !clause)) {
+      throw new Error(`Unresolved keyword group in AND filter: ${groupNames.join(', ')}`);
+    }
+    return groupClauses.join(',');
+  }
+
+  /**
    * Convert genre names to IDs; handle movie vs TV.
    */
   static expandGenres(genreNames, mediaType, seasonData) {
@@ -388,10 +405,9 @@ export default class SeasonalController {
 
     // Keywords
     if (filter.keywords && filter.keywords.length > 0) {
-      const keywordIds = SeasonalController.expandKeywordGroups(filter.keywords, resolvedKeywords);
-      if (keywordIds.length > 0) {
-        params.push(`with_keywords=${keywordIds.join('|')}`);
-      }
+      // Keywords: groups are OR-ed by default, or AND-ed when keywordOp is 'AND'
+      const keywordClause = SeasonalController.buildKeywordClause(filter.keywords, filter.keywordOp, resolvedKeywords);
+      if (keywordClause) params.push(`with_keywords=${keywordClause}`);
     }
 
     // Keyword exclusions (TV-only rails): group names resolve to IDs sent as without_keywords

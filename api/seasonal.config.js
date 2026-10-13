@@ -229,7 +229,8 @@ const HALLOWEEN = {
       types: ['movie', 'tv'],
       allowToggle: true,
       movieFilter: {
-        keywords: ['SUPERNATURAL'],
+        keywords: ['SUPERNATURAL', 'HORROR_TV'],
+        keywordOp: 'AND',
         genres: ['Fantasy', 'Horror'],
         genreOp: 'OR',
       },
