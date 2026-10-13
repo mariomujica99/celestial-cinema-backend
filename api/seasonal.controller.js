@@ -394,10 +394,12 @@ export default class SeasonalController {
       }
     }
 
-    // Keyword exclusions (TV only)
+    // Keyword exclusions (TV-only rails): group names resolve to IDs sent as without_keywords
     if (filter.keywordExclusions && filter.keywordExclusions.length > 0) {
-      // This would require resolving exclusion keyword names to IDs
-      // For now, skip (Phase 2 MVP)
+      const excludedKeywordIds = SeasonalController.expandKeywordGroups(filter.keywordExclusions, resolvedKeywords);
+      if (excludedKeywordIds.length > 0) {
+        params.push(`without_keywords=${excludedKeywordIds.join('|')}`);
+      }
     }
 
     // Certification cap (movie only)

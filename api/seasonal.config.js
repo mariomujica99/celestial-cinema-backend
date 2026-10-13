@@ -23,6 +23,7 @@ const HALLOWEEN = {
     PARANORMAL: ['paranormal investigation', 'ghost hunter', 'exorcism', 'demon'],
     SUPERNATURAL: ['supernatural', 'witch', 'curse', 'occult'],
     SCIFI_SCARE: ['alien', 'creature', 'mutation', 'infection'],
+    HORROR_EXCLUDE: ['horror', 'gore'],
   },
 
   // Resolved by resolveKeywords.js script; maps group name to array of TMDB keyword IDs
@@ -69,7 +70,8 @@ const HALLOWEEN = {
         13031,
         2766,
         4884
-      ]
+      ],
+      "HORROR_EXCLUDE": []
     }
   },
 
@@ -215,7 +217,7 @@ const HALLOWEEN = {
         genres: ['Kids', 'Family'],
         genreOp: 'OR',
         keywords: ['HALLOWEEN'],
-        keywordExclusions: ['horror', 'gore'], // TV-specific: exclude horror/gore keywords
+        keywordExclusions: ['HORROR_EXCLUDE'], // TV-specific: exclude horror/gore keywords
       },
     },
     {
