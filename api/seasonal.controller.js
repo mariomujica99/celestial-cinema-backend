@@ -8,6 +8,8 @@ const SEASON_EPISODES_CACHE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const RAIL_RESULT_LIMIT = 20; // Request a few more than needed to account for dedupe
 const MIN_VOTE_COUNT_MOVIE = 50;
 const MIN_VOTE_COUNT_TV = 20;
+const HERO_CANDIDATES_PER_TYPE = 8;
+const HERO_SLIDE_LIMIT = 8;
 
 // Lazy-loaded episodes JSON
 let cachedEpisodes = null;
@@ -66,19 +68,7 @@ export default class SeasonalController {
       const slides = await MoviesController.getCached(
         `seasonal-hero-${season}`,
         SEASON_HERO_CACHE_MS,
-        async () => {
-          // For now, use trending as the hero candidate source.
-          // In Phase 3, this could be the first rail's top results.
-          const trending = await MoviesController.makeAPICall('/trending/all/week');
-          const candidates = (trending.results || [])
-            .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
-            .slice(0, 16);
-
-          const settledSlides = await Promise.allSettled(
-            candidates.map(item => MoviesController.fetchHeroSlide(item))
-          );
-          return MoviesController.collectFulfilledValues(settledSlides).slice(0, 8);
-        }
+        () => SeasonalController.loadHeroSlides(season, seasonData)
       );
 
       res.json({ results: slides });
@@ -112,20 +102,20 @@ export default class SeasonalController {
         return res.status(400).json({ error: `Rail does not support type '${mediaType}'` });
       }
 
-      if (rail.isEpisodeRail || rail.isNewThisYear) {
+      if (rail.isEpisodeRail) {
         return res.status(400).json({ error: `Rail '${railKey}' does not support pagination` });
       }
 
-      // Build TMDB discover endpoint based on rail filter
-      const filter = mediaType === 'movie' ? rail.movieFilter : rail.tvFilter;
-      const endpoint = SeasonalController.buildDiscoverEndpoint(
-        mediaType,
-        filter,
-        seasonData.resolvedKeywords,
-        page
-      );
+      const keywordIds = SeasonalController.getResolvedKeywords(season, seasonData);
+      const endpoint = rail.isNewThisYear
+        ? SeasonalController.buildNewThisYearEndpoint(
+            mediaType, SeasonalController.getBaseFilter(seasonData, mediaType), keywordIds, SeasonalController.getNewThisYear(), page
+          )
+        : SeasonalController.buildDiscoverEndpoint(
+            mediaType, mediaType === 'movie' ? rail.movieFilter : rail.tvFilter, keywordIds, page
+          );
 
-      const data = await MoviesController.makeAPICall(endpoint);
+      const data = await SeasonalController.getCachedDiscover(`seasonal-rail-${season}-${railKey}-${mediaType}-${page}`, endpoint);
       res.json(data);
     } catch (error) {
       console.error('Error fetching seasonal rail:', error);
@@ -164,11 +154,11 @@ export default class SeasonalController {
         mediaType,
         providerId,
         baseFilter,
-        seasonData.resolvedKeywords,
+        SeasonalController.getResolvedKeywords(season, seasonData),
         page
       );
 
-      const data = await MoviesController.makeAPICall(endpoint);
+      const data = await SeasonalController.getCachedDiscover(`seasonal-streaming-${season}-${providerId}-${mediaType}-${page}`, endpoint);
       res.json(data);
     } catch (error) {
       console.error('Error fetching seasonal streaming:', error);
@@ -199,21 +189,15 @@ export default class SeasonalController {
         ? seasonData.streamingBase.movies
         : seasonData.streamingBase.tv;
 
-      const now = new Date();
-      // In January, "New This Year" uses the previous year
-      const year = now.getMonth() === 0
-        ? now.getFullYear() - 1
-        : now.getFullYear();
-
       const endpoint = SeasonalController.buildNewThisYearEndpoint(
         mediaType,
         baseFilter,
-        seasonData.resolvedKeywords,
-        year,
+        SeasonalController.getResolvedKeywords(season, seasonData),
+        SeasonalController.getNewThisYear(),
         page
       );
 
-      const data = await MoviesController.makeAPICall(endpoint);
+      const data = await SeasonalController.getCachedDiscover(`seasonal-new-${season}-${mediaType}-${page}`, endpoint);
       res.json(data);
     } catch (error) {
       console.error('Error fetching seasonal new:', error);
@@ -282,6 +266,58 @@ export default class SeasonalController {
   }
 
   // ========== HELPERS ==========
+
+  /**
+   * resolveKeywords.js prints its output keyed by season; pick this season's map.
+   */
+  static getResolvedKeywords(season, seasonData) {
+    return seasonData.resolvedKeywords?.[season] || {};
+  }
+
+  static getBaseFilter(seasonData, mediaType) {
+    return mediaType === 'movie' ? seasonData.streamingBase.movies : seasonData.streamingBase.tv;
+  }
+
+  /**
+   * In January, "New This Year" uses the year that just ended.
+   */
+  static getNewThisYear() {
+    const now = new Date();
+    return now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  }
+
+  static getCachedDiscover(cacheKey, endpoint) {
+    return MoviesController.getCached(
+      cacheKey,
+      SEASON_RAIL_CACHE_MS,
+      () => MoviesController.makeAPICall(endpoint)
+    );
+  }
+
+  /**
+   * Hero candidates: the season's most popular movies and shows, interleaved
+   * so both types appear, then reduced to slides that have a trailer + backdrop.
+   */
+  static async loadHeroSlides(season, seasonData) {
+    const keywordIds = SeasonalController.getResolvedKeywords(season, seasonData);
+    const [movieData, tvData] = await Promise.all(['movie', 'tv'].map(mediaType =>
+      MoviesController.makeAPICall(SeasonalController.buildDiscoverEndpoint(
+        mediaType, SeasonalController.getBaseFilter(seasonData, mediaType), keywordIds, 1
+      ))
+    ));
+
+    const toCandidates = (data, mediaType) => (data.results || [])
+      .slice(0, HERO_CANDIDATES_PER_TYPE)
+      .map(item => ({ id: item.id, media_type: mediaType }));
+    const movieCandidates = toCandidates(movieData, 'movie');
+    const tvCandidates = toCandidates(tvData, 'tv');
+    const candidates = movieCandidates.flatMap((movie, index) => [movie, tvCandidates[index]].filter(Boolean));
+
+    const settledSlides = await Promise.allSettled(
+      candidates.map(item => MoviesController.fetchHeroSlide(item))
+    );
+    return MoviesController.collectFulfilledValues(settledSlides).slice(0, HERO_SLIDE_LIMIT);
+  }
 
   static parsePageParam(pageParam) {
     const page = parseInt(pageParam, 10);
@@ -354,11 +390,7 @@ export default class SeasonalController {
     if (filter.keywords && filter.keywords.length > 0) {
       const keywordIds = SeasonalController.expandKeywordGroups(filter.keywords, resolvedKeywords);
       if (keywordIds.length > 0) {
-        if (filter.keywordOp === 'OR') {
-          params.push(`with_keywords=${keywordIds.join('|')}`);
-        } else {
-          params.push(`with_keywords=${keywordIds.join(',')}`);
-        }
+        params.push(`with_keywords=${keywordIds.join('|')}`);
       }
     }
 
