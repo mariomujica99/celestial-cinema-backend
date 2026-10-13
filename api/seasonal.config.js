@@ -279,8 +279,7 @@ const HALLOWEEN = {
         genreOp: 'AND',
       },
       tvFilter: {
-        keywords: ['SCIFI_SCARE', 'HORROR_SCIFI'],
-        keywordOp: 'AND',
+        keywords: ['HORROR_SCIFI'],
         genres: ['Sci_Fi_Fantasy'],
       },
     },
