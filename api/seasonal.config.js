@@ -24,6 +24,7 @@ const HALLOWEEN = {
     SUPERNATURAL: ['supernatural', 'witch', 'curse', 'occult'],
     HORROR_SUPERNATURAL: ['ghost', 'haunted house', 'haunting', 'poltergeist', 'paranormal investigation', 'ghost hunter', 'exorcism', 'demon'],    
     SCIFI_SCARE: ['alien', 'creature', 'mutation', 'infection'],
+    HORROR_SCIFI: ['horror', 'slasher', 'vampire', 'werewolf', 'zombie', 'serial killer'],
     HORROR_EXCLUDE: ['horror', 'gore'],
   },
 
@@ -81,6 +82,14 @@ const HALLOWEEN = {
         13031,
         2766,
         4884
+      ],
+      "HORROR_SCIFI": [
+        342626, 
+        12339, 
+        3133, 
+        12564, 
+        12377, 
+        10714
       ],
       "HORROR_EXCLUDE": [
         342626,
@@ -164,7 +173,7 @@ const HALLOWEEN = {
     },
     {
       key: 'halloween-episodes',
-      title: 'Halloween Episodes',
+      title: 'Spooky Episodes',
       types: ['tv'],
       allowToggle: false,
       isEpisodeRail: true,
@@ -172,7 +181,7 @@ const HALLOWEEN = {
     },
     {
       key: 'animation-halloween-episodes',
-      title: 'Animation Halloween Episodes',
+      title: 'Animation Spooks',
       types: ['tv'],
       allowToggle: false,
       isEpisodeRail: true,
@@ -187,7 +196,7 @@ const HALLOWEEN = {
     },
     {
       key: 'psychological-horror-thrillers',
-      title: 'Psychological Horror & Thrillers',
+      title: 'Psychological',
       types: ['movie', 'tv'],
       allowToggle: true,
       movieFilter: {
@@ -203,7 +212,7 @@ const HALLOWEEN = {
     },
     {
       key: 'hauntings-paranormal',
-      title: 'Hauntings & Paranormal',
+      title: 'Paranormal',
       types: ['movie', 'tv'],
       allowToggle: true,
       movieFilter: {
