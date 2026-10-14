@@ -564,22 +564,42 @@ export default class SeasonalController {
   }
 
   /**
-   * Build one landscape card from a frozen entry and its TMDB data. Returns null if TMDB has no match.
+   * Build landscape cards for frozen entries, most popular show first. Each TMDB season and show is fetched once (cached 7 days).
+   */
+  static async buildEpisodeCards(entries) {
+    const seasonsByKey = new Map();
+    const popularityByShow = new Map();
+    const cards = [];
+    for (const entry of entries) {
+      const seasonKey = `${entry.showId}-${entry.seasonNumber}`;
+      if (!seasonsByKey.has(seasonKey)) {
+        seasonsByKey.set(seasonKey, await SeasonalController.fetchTmdbSeason(entry.showId, entry.seasonNumber));
+      }
+      if (!popularityByShow.has(entry.showId)) {
+        popularityByShow.set(entry.showId, await SeasonalController.fetchShowPopularity(entry.showId));
+      }
+      const card = SeasonalController.toEpisodeCard(entry, seasonsByKey.get(seasonKey), popularityByShow.get(entry.showId));
+      if (card) {
+        cards.push(card);
+      }
+    }
+    return cards.sort((a, b) => b.showPopularity - a.showPopularity);
+  }
+
+  /**
+   * Build one card from a frozen entry and its TMDB season. Returns null when the episode is not on TMDB.
    * A missing still returns stillPath: null; the frontend substitutes its placeholder image.
    */
-  static toEpisodeCard(entry, seasonsByKey, showNames) {
-    const season = seasonsByKey.get(`${entry.showId}-${entry.seasonNumber}`);
-    if (!season) {
-      return null;
-    }
-    const tmdbEpisode = season.episodes?.find((episode) => episode.episode_number === entry.episodeNumber);
+  static toEpisodeCard(entry, season, showPopularity) {
+    const tmdbEpisode = season?.episodes?.find((episode) => episode.episode_number === entry.episodeNumber);
     if (!tmdbEpisode) {
       console.error(`Frozen episode not found on TMDB: ${entry.showId} S${entry.seasonNumber}E${entry.episodeNumber}`);
       return null;
     }
     return {
       showId: entry.showId,
-      showName: showNames.get(entry.showId) ?? null,
+      showName: entry.showName ?? null,
+      showPopularity,
       seasonNumber: entry.seasonNumber,
       episodeNumber: entry.episodeNumber,
       episodeTitle: tmdbEpisode.name,
@@ -587,6 +607,23 @@ export default class SeasonalController {
       rating: tmdbEpisode.vote_average ?? null,
       stillPath: tmdbEpisode.still_path ?? null,
     };
+  }
+
+  /**
+   * Fetch a show's TMDB popularity score (cached 7 days). Returns 0 on failure so the show's episodes sort last.
+   */
+  static async fetchShowPopularity(showId) {
+    try {
+      const show = await MoviesController.getCached(
+        `tmdb-tv-${showId}`,
+        SEASON_EPISODES_CACHE_MS,
+        () => MoviesController.makeAPICall(`/tv/${showId}`)
+      );
+      return show.popularity ?? 0;
+    } catch (error) {
+      console.error(`Could not load TMDB show ${showId}:`, error.message);
+      return 0;
+    }
   }
 
   /**
