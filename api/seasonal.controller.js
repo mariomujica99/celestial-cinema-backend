@@ -15,6 +15,9 @@ const MIN_VOTE_COUNT_MOVIE = 50;
 const MIN_VOTE_COUNT_TV = 20;
 const HERO_CANDIDATES_PER_TYPE = 8;
 const HERO_SLIDE_LIMIT = 8;
+const HERO_TRENDING_WINDOW = 'week';
+const HERO_TRENDING_SCAN_PAGES = 3; // 60 trending titles per media type
+const KEYWORD_CACHE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // Lazy-loaded frozen episodes (api/seasonal.episodes.json)
 let cachedFrozenEpisodes = null;
@@ -286,28 +289,93 @@ export default class SeasonalController {
   }
 
   /**
-   * Hero candidates: the season's most popular movies and shows, interleaved
-   * so both types appear, then reduced to slides that have a trailer + backdrop.
+   * Hero slides: the season's most trending titles, interleaved movie/TV, then reduced to slides
+   * that have a trailer and backdrop.
    */
   static async loadHeroSlides(season, seasonData) {
     const keywordIds = SeasonalController.getResolvedKeywords(season, seasonData);
-    const [movieData, tvData] = await Promise.all(['movie', 'tv'].map(mediaType =>
-      MoviesController.makeAPICall(SeasonalController.buildDiscoverEndpoint(
-        mediaType, SeasonalController.getBaseFilter(seasonData, mediaType), keywordIds, 1
-      ))
+    const [movieCandidates, tvCandidates] = await Promise.all(['movie', 'tv'].map(mediaType =>
+      SeasonalController.findTrendingCandidates(mediaType, seasonData, keywordIds)
     ));
-
-    const toCandidates = (data, mediaType) => (data.results || [])
-      .slice(0, HERO_CANDIDATES_PER_TYPE)
-      .map(item => ({ id: item.id, media_type: mediaType }));
-    const movieCandidates = toCandidates(movieData, 'movie');
-    const tvCandidates = toCandidates(tvData, 'tv');
-    const candidates = movieCandidates.flatMap((movie, index) => [movie, tvCandidates[index]].filter(Boolean));
+    const candidates = SeasonalController.interleave(movieCandidates, tvCandidates);
 
     const settledSlides = await Promise.allSettled(
       candidates.map(item => MoviesController.fetchHeroSlide(item))
     );
     return MoviesController.collectFulfilledValues(settledSlides).slice(0, HERO_SLIDE_LIMIT);
+  }
+
+  static interleave(first, second) {
+    const longest = Math.max(first.length, second.length);
+    return Array.from({ length: longest }, (_, index) => [first[index], second[index]])
+      .flat()
+      .filter(Boolean);
+  }
+
+  /**
+   * Trending titles for one media type that match the season's base filter, most trending first.
+   */
+  static async findTrendingCandidates(mediaType, seasonData, keywordIds) {
+    const filter = SeasonalController.getBaseFilter(seasonData, mediaType);
+    const matches = [];
+    for (let page = 1; page <= HERO_TRENDING_SCAN_PAGES && matches.length < HERO_CANDIDATES_PER_TYPE; page++) {
+      const trending = await SeasonalController.getCachedTrending(mediaType, page);
+      for (const item of trending.results || []) {
+        if (matches.length >= HERO_CANDIDATES_PER_TYPE) {
+          break;
+        }
+        if (await SeasonalController.matchesSeasonFilter(item, { mediaType, filter, seasonData, keywordIds })) {
+          matches.push({ id: item.id, media_type: mediaType });
+        }
+      }
+    }
+    return matches;
+  }
+
+  /**
+   * Checks a trending item against the season's base filter the way discover does: every genre must
+   * match, and any keyword group may match. Keywords are only looked up when the genre check passes.
+   */
+  static async matchesSeasonFilter(item, { mediaType, filter, seasonData, keywordIds }) {
+    if (filter.genres?.length) {
+      const genreIds = SeasonalController.expandGenres(filter.genres, mediaType, seasonData);
+      if (!genreIds.every(id => item.genre_ids?.includes(id))) {
+        return false;
+      }
+    }
+    if (filter.keywords?.length) {
+      const wantedIds = SeasonalController.expandKeywordGroups(filter.keywords, keywordIds);
+      const itemKeywordIds = await SeasonalController.getCachedKeywordIds(mediaType, item.id);
+      if (!wantedIds.some(id => itemKeywordIds.includes(id))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static getCachedTrending(mediaType, page) {
+    return MoviesController.getCached(
+      `trending-${mediaType}-${HERO_TRENDING_WINDOW}-${page}`,
+      SEASON_HERO_CACHE_MS,
+      () => MoviesController.makeAPICall(`/trending/${mediaType}/${HERO_TRENDING_WINDOW}?page=${page}`)
+    );
+  }
+
+  /**
+   * Keyword IDs for one title (cached 24 hours). Movies return `keywords`; TV returns `results`.
+   */
+  static async getCachedKeywordIds(mediaType, mediaId) {
+    try {
+      const data = await MoviesController.getCached(
+        `keywords-${mediaType}-${mediaId}`,
+        KEYWORD_CACHE_MS,
+        () => MoviesController.makeAPICall(`/${mediaType}/${mediaId}/keywords`)
+      );
+      return (data.keywords ?? data.results ?? []).map(keyword => keyword.id);
+    } catch (error) {
+      console.error(`Could not load keywords for ${mediaType} ${mediaId}:`, error.message);
+      return [];
+    }
   }
 
   static parsePageParam(pageParam) {
