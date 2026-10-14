@@ -497,37 +497,11 @@ export default class SeasonalController {
   }
 
   /**
-   * Hydrate the frozen episodes for a season. Each TMDB season and show is fetched once per cache window.
+   * Hydrate the frozen episodes for a season, most popular show first.
    */
   static async hydrateEpisodes(season) {
     const entries = await SeasonalController.loadFrozenEpisodes(season);
-    const seasonsByKey = await SeasonalController.fetchUnique(
-      entries,
-      (entry) => `${entry.showId}-${entry.seasonNumber}`,
-      (entry) => SeasonalController.fetchTmdbSeason(entry.showId, entry.seasonNumber)
-    );
-    const showNames = await SeasonalController.fetchUnique(
-      entries,
-      (entry) => entry.showId,
-      (entry) => SeasonalController.fetchShowName(entry.showId)
-    );
-    return entries
-      .map((entry) => SeasonalController.toEpisodeCard(entry, seasonsByKey, showNames))
-      .filter(Boolean);
-  }
-
-  /**
-   * Load each unique item once. Returns a Map of key to loaded value.
-   */
-  static async fetchUnique(items, keyOf, loadOne) {
-    const loaded = new Map();
-    for (const item of items) {
-      const key = keyOf(item);
-      if (!loaded.has(key)) {
-        loaded.set(key, await loadOne(item));
-      }
-    }
-    return loaded;
+    return SeasonalController.buildEpisodeCards(entries);
   }
 
   /**
@@ -542,23 +516,6 @@ export default class SeasonalController {
       );
     } catch (error) {
       console.error(`Could not load TMDB season ${showId} S${seasonNumber}:`, error.message);
-      return null;
-    }
-  }
-
-  /**
-   * Fetch a show's name (cached 7 days). Returns null on failure.
-   */
-  static async fetchShowName(showId) {
-    try {
-      const show = await MoviesController.getCached(
-        `tmdb-tv-${showId}`,
-        SEASON_EPISODES_CACHE_MS,
-        () => MoviesController.makeAPICall(`/tv/${showId}`)
-      );
-      return show.name ?? null;
-    } catch (error) {
-      console.error(`Could not load TMDB show ${showId}:`, error.message);
       return null;
     }
   }
