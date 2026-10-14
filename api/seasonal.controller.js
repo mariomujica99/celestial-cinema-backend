@@ -1,6 +1,11 @@
 import seasonalConfig from './seasonal.config.js';
 import MoviesController from './movies.controller.js';
+import { readFile } from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FROZEN_EPISODES_PATH = path.join(__dirname, 'seasonal.episodes.json');
 const SEASON_RAIL_CACHE_MS = 6 * 60 * 60 * 1000; // 6 hours
 const SEASON_HERO_CACHE_MS = 6 * 60 * 60 * 1000; // 6 hours
 const SEASON_POOL_CACHE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -11,8 +16,8 @@ const MIN_VOTE_COUNT_TV = 20;
 const HERO_CANDIDATES_PER_TYPE = 8;
 const HERO_SLIDE_LIMIT = 8;
 
-// Lazy-loaded episodes JSON
-let cachedEpisodes = null;
+// Lazy-loaded frozen episodes (api/seasonal.episodes.json)
+let cachedFrozenEpisodes = null;
 
 export default class SeasonalController {
   /**
@@ -34,7 +39,6 @@ export default class SeasonalController {
         types: rail.types,
         allowToggle: rail.allowToggle,
         isEpisodeRail: rail.isEpisodeRail || false,
-        episodeKind: rail.episodeKind || null,
         isNewThisYear: rail.isNewThisYear || false,
       }));
 
@@ -206,13 +210,12 @@ export default class SeasonalController {
   }
 
   /**
-   * GET /seasonal/:season/episodes?kind=live|animation
-   * Returns curated episode data hydrated into card format.
+   * GET /seasonal/:season/episodes
+   * Returns the frozen approved episodes for the season, hydrated into card data.
    */
   static async apiGetSeasonalEpisodes(req, res) {
     try {
       const { season } = req.params;
-      const kind = req.query.kind || 'live';
 
       const seasonData = seasonalConfig[season];
       if (!seasonData) {
@@ -223,20 +226,8 @@ export default class SeasonalController {
         return res.status(400).json({ error: 'Season has no episode rails' });
       }
 
-      if (!['live', 'animation'].includes(kind)) {
-        return res.status(400).json({ error: "Kind must be 'live' or 'animation'" });
-      }
-
-      // Load and cache the frozen episode list
-      const episodes = await MoviesController.getCached(
-        `seasonal-episodes-${season}`,
-        SEASON_EPISODES_CACHE_MS,
-        () => SeasonalController.loadEpisodes()
-      );
-
-      // Filter by season and kind, then hydrate into card data
-      const filtered = episodes.filter(ep => ep.season === season && ep.kind === kind);
-      res.json({ results: filtered });
+      const results = await SeasonalController.hydrateEpisodes(season);
+      res.json({ results });
     } catch (error) {
       console.error('Error fetching seasonal episodes:', error);
       res.status(500).json({ error: error.message });
@@ -506,20 +497,114 @@ export default class SeasonalController {
   }
 
   /**
-   * Load and parse the frozen episode list from seasonal.episodes.json.
-   * For now returns empty; Phase 4 will populate this.
+   * Hydrate the frozen episodes for a season. Each TMDB season and show is fetched once per cache window.
    */
-  static async loadEpisodes() {
-    if (cachedEpisodes) return cachedEpisodes;
+  static async hydrateEpisodes(season) {
+    const entries = await SeasonalController.loadFrozenEpisodes(season);
+    const seasonsByKey = await SeasonalController.fetchUnique(
+      entries,
+      (entry) => `${entry.showId}-${entry.seasonNumber}`,
+      (entry) => SeasonalController.fetchTmdbSeason(entry.showId, entry.seasonNumber)
+    );
+    const showNames = await SeasonalController.fetchUnique(
+      entries,
+      (entry) => entry.showId,
+      (entry) => SeasonalController.fetchShowName(entry.showId)
+    );
+    return entries
+      .map((entry) => SeasonalController.toEpisodeCard(entry, seasonsByKey, showNames))
+      .filter(Boolean);
+  }
 
+  /**
+   * Load each unique item once. Returns a Map of key to loaded value.
+   */
+  static async fetchUnique(items, keyOf, loadOne) {
+    const loaded = new Map();
+    for (const item of items) {
+      const key = keyOf(item);
+      if (!loaded.has(key)) {
+        loaded.set(key, await loadOne(item));
+      }
+    }
+    return loaded;
+  }
+
+  /**
+   * Fetch one TMDB season (cached 7 days). Returns null on failure so one season can't break the rail.
+   */
+  static async fetchTmdbSeason(showId, seasonNumber) {
     try {
-      // In a real deployment, this would import/read seasonal.episodes.json
-      // For Phase 2 MVP, return empty array
-      cachedEpisodes = [];
-      return cachedEpisodes;
+      return await MoviesController.getCached(
+        `tmdb-tv-season-${showId}-${seasonNumber}`,
+        SEASON_EPISODES_CACHE_MS,
+        () => MoviesController.makeAPICall(`/tv/${showId}/season/${seasonNumber}`)
+      );
     } catch (error) {
-      console.error('Failed to load episodes:', error);
-      return [];
+      console.error(`Could not load TMDB season ${showId} S${seasonNumber}:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch a show's name (cached 7 days). Returns null on failure.
+   */
+  static async fetchShowName(showId) {
+    try {
+      const show = await MoviesController.getCached(
+        `tmdb-tv-${showId}`,
+        SEASON_EPISODES_CACHE_MS,
+        () => MoviesController.makeAPICall(`/tv/${showId}`)
+      );
+      return show.name ?? null;
+    } catch (error) {
+      console.error(`Could not load TMDB show ${showId}:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Build one landscape card from a frozen entry and its TMDB data. Returns null if TMDB has no match.
+   * A missing still returns stillPath: null; the frontend substitutes its placeholder image.
+   */
+  static toEpisodeCard(entry, seasonsByKey, showNames) {
+    const season = seasonsByKey.get(`${entry.showId}-${entry.seasonNumber}`);
+    if (!season) {
+      return null;
+    }
+    const tmdbEpisode = season.episodes?.find((episode) => episode.episode_number === entry.episodeNumber);
+    if (!tmdbEpisode) {
+      console.error(`Frozen episode not found on TMDB: ${entry.showId} S${entry.seasonNumber}E${entry.episodeNumber}`);
+      return null;
+    }
+    return {
+      showId: entry.showId,
+      showName: showNames.get(entry.showId) ?? null,
+      seasonNumber: entry.seasonNumber,
+      episodeNumber: entry.episodeNumber,
+      episodeTitle: tmdbEpisode.name,
+      airDate: tmdbEpisode.air_date ?? null,
+      rating: tmdbEpisode.vote_average ?? null,
+      stillPath: tmdbEpisode.still_path ?? null,
+    };
+  }
+
+  /**
+   * Frozen episode entries for one season. The file is read once per process.
+   */
+  static async loadFrozenEpisodes(season) {
+    if (!cachedFrozenEpisodes) {
+      cachedFrozenEpisodes = await SeasonalController.readFrozenFile();
+    }
+    return cachedFrozenEpisodes[season]?.episodes ?? [];
+  }
+
+  static async readFrozenFile() {
+    try {
+      return JSON.parse(await readFile(FROZEN_EPISODES_PATH, 'utf8'));
+    } catch (error) {
+      console.error('Failed to read seasonal.episodes.json:', error.message);
+      return {};
     }
   }
 }

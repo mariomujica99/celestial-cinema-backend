@@ -14,7 +14,14 @@ const HALLOWEEN = {
   hasEpisodeRails: true,
   title: 'Halloween',
   palette: 'halloween', // refs seasonal-themes.css
-  
+
+  // Phase 4a episode scan: whole-word, case-insensitive, matched against episode title and overview
+  episodeTerms: [
+    'halloween', 'spooky', 'haunted', 'haunting', 'ghost', 'witch', 'vampire',
+    'werewolf', 'zombie', 'monster', 'pumpkin', 'jack-o-lantern', 'trick or treat',
+    'graveyard', 'skeleton', 'frankenstein', 'dracula', 'treehouse of horror',
+  ],
+
   keywordGroups: {
     HALLOWEEN: ['halloween'],
     HORROR_TV: ['horror', 'slasher', 'monster', 'vampire', 'werewolf', 'zombie', 'serial killer'],
@@ -177,15 +184,6 @@ const HALLOWEEN = {
       types: ['tv'],
       allowToggle: false,
       isEpisodeRail: true,
-      episodeKind: 'live',
-    },
-    {
-      key: 'animation-halloween-episodes',
-      title: 'Animation Spooks',
-      types: ['tv'],
-      allowToggle: false,
-      isEpisodeRail: true,
-      episodeKind: 'animation',
     },
     {
       key: 'new-this-year',

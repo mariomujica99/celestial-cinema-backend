@@ -1,2 +1,751 @@
-[
-]
+{
+  "halloween": {
+    "episodes": [
+      {
+        "showId": 126027,
+        "seasonNumber": 2,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 126027,
+        "seasonNumber": 4,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 126027,
+        "seasonNumber": 5,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 17,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 2316,
+        "seasonNumber": 2,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 1421,
+        "seasonNumber": 8,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 1100,
+        "seasonNumber": 1,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 1420,
+        "seasonNumber": 2,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 1622,
+        "seasonNumber": 4,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 126027,
+        "seasonNumber": 2,
+        "episodeNumber": 13
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 2,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 12,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 14,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 18,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 37,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 38,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 2190,
+        "seasonNumber": 3,
+        "episodeNumber": 10
+      },
+      {
+        "showId": 97645,
+        "seasonNumber": 0,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 387,
+        "seasonNumber": 4,
+        "episodeNumber": 18
+      },
+      {
+        "showId": 1668,
+        "seasonNumber": 8,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 48891,
+        "seasonNumber": 1,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 48891,
+        "seasonNumber": 2,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 48891,
+        "seasonNumber": 3,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 48891,
+        "seasonNumber": 4,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 1421,
+        "seasonNumber": 6,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 1421,
+        "seasonNumber": 9,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 1421,
+        "seasonNumber": 11,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 1100,
+        "seasonNumber": 7,
+        "episodeNumber": 8
+      },
+      {
+        "showId": 18347,
+        "seasonNumber": 3,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 3452,
+        "seasonNumber": 5,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 141,
+        "seasonNumber": 8,
+        "episodeNumber": 23
+      },
+      {
+        "showId": 1622,
+        "seasonNumber": 4,
+        "episodeNumber": 7
+      },
+      {
+        "showId": 95,
+        "seasonNumber": 1,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 95,
+        "seasonNumber": 2,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 95,
+        "seasonNumber": 5,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 6,
+        "episodeNumber": 21
+      },
+      {
+        "showId": 1416,
+        "seasonNumber": 16,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 1416,
+        "seasonNumber": 19,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 126027,
+        "seasonNumber": 1,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 126027,
+        "seasonNumber": 3,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 4,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 5,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 8,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 9,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 13,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 19,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 20,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 22,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 25,
+        "episodeNumber": 2
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 26,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 27,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 27,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 32,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 33,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 35,
+        "episodeNumber": 11
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 38,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 1434,
+        "seasonNumber": 0,
+        "episodeNumber": 24
+      },
+      {
+        "showId": 1434,
+        "seasonNumber": 9,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 1434,
+        "seasonNumber": 24,
+        "episodeNumber": 2
+      },
+      {
+        "showId": 32726,
+        "seasonNumber": 5,
+        "episodeNumber": 2
+      },
+      {
+        "showId": 32726,
+        "seasonNumber": 7,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 32726,
+        "seasonNumber": 11,
+        "episodeNumber": 22
+      },
+      {
+        "showId": 32726,
+        "seasonNumber": 16,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 2190,
+        "seasonNumber": 23,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 60625,
+        "seasonNumber": 0,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 60625,
+        "seasonNumber": 0,
+        "episodeNumber": 18
+      },
+      {
+        "showId": 97645,
+        "seasonNumber": 0,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 15260,
+        "seasonNumber": 1,
+        "episodeNumber": 14
+      },
+      {
+        "showId": 15260,
+        "seasonNumber": 3,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 15260,
+        "seasonNumber": 3,
+        "episodeNumber": 24
+      },
+      {
+        "showId": 15260,
+        "seasonNumber": 5,
+        "episodeNumber": 29
+      },
+      {
+        "showId": 15260,
+        "seasonNumber": 6,
+        "episodeNumber": 17
+      },
+      {
+        "showId": 387,
+        "seasonNumber": 0,
+        "episodeNumber": 11
+      },
+      {
+        "showId": 387,
+        "seasonNumber": 7,
+        "episodeNumber": 47
+      },
+      {
+        "showId": 387,
+        "seasonNumber": 12,
+        "episodeNumber": 21
+      },
+      {
+        "showId": 387,
+        "seasonNumber": 16,
+        "episodeNumber": 8
+      },
+      {
+        "showId": 40075,
+        "seasonNumber": 0,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 1877,
+        "seasonNumber": 1,
+        "episodeNumber": 40
+      },
+      {
+        "showId": 1877,
+        "seasonNumber": 2,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 3022,
+        "seasonNumber": 1,
+        "episodeNumber": 17
+      },
+      {
+        "showId": 3022,
+        "seasonNumber": 6,
+        "episodeNumber": 21
+      },
+      {
+        "showId": 537,
+        "seasonNumber": 1,
+        "episodeNumber": 16
+      },
+      {
+        "showId": 537,
+        "seasonNumber": 2,
+        "episodeNumber": 13
+      },
+      {
+        "showId": 537,
+        "seasonNumber": 4,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 537,
+        "seasonNumber": 5,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 537,
+        "seasonNumber": 5,
+        "episodeNumber": 37
+      },
+      {
+        "showId": 68073,
+        "seasonNumber": 0,
+        "episodeNumber": 19
+      },
+      {
+        "showId": 2316,
+        "seasonNumber": 3,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 8592,
+        "seasonNumber": 5,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 48891,
+        "seasonNumber": 4,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 1421,
+        "seasonNumber": 2,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 18347,
+        "seasonNumber": 3,
+        "episodeNumber": 15
+      },
+      {
+        "showId": 1418,
+        "seasonNumber": 5,
+        "episodeNumber": 18
+      },
+      {
+        "showId": 1418,
+        "seasonNumber": 6,
+        "episodeNumber": 17
+      },
+      {
+        "showId": 4586,
+        "seasonNumber": 3,
+        "episodeNumber": 2
+      },
+      {
+        "showId": 1622,
+        "seasonNumber": 0,
+        "episodeNumber": 83
+      },
+      {
+        "showId": 1622,
+        "seasonNumber": 0,
+        "episodeNumber": 94
+      },
+      {
+        "showId": 1622,
+        "seasonNumber": 4,
+        "episodeNumber": 18
+      },
+      {
+        "showId": 95,
+        "seasonNumber": 0,
+        "episodeNumber": 27
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 1,
+        "episodeNumber": 9
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 2,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 2,
+        "episodeNumber": 22
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 4,
+        "episodeNumber": 22
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 5,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 5,
+        "episodeNumber": 2
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 5,
+        "episodeNumber": 8
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 6,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 6,
+        "episodeNumber": 19
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 7,
+        "episodeNumber": 2
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 7,
+        "episodeNumber": 7
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 7,
+        "episodeNumber": 16
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 8,
+        "episodeNumber": 11
+      },
+      {
+        "showId": 1981,
+        "seasonNumber": 8,
+        "episodeNumber": 12
+      },
+      {
+        "showId": 1416,
+        "seasonNumber": 9,
+        "episodeNumber": 21
+      },
+      {
+        "showId": 126027,
+        "seasonNumber": 2,
+        "episodeNumber": 19
+      },
+      {
+        "showId": 126027,
+        "seasonNumber": 6,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 126027,
+        "seasonNumber": 6,
+        "episodeNumber": 2
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 3,
+        "episodeNumber": 7
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 6,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 7,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 10,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 11,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 15,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 16,
+        "episodeNumber": 1
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 21,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 23,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 24,
+        "episodeNumber": 2
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 28,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 29,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 30,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 31,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 34,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 35,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 36,
+        "episodeNumber": 5
+      },
+      {
+        "showId": 456,
+        "seasonNumber": 36,
+        "episodeNumber": 7
+      },
+      {
+        "showId": 1433,
+        "seasonNumber": 17,
+        "episodeNumber": 14
+      },
+      {
+        "showId": 32726,
+        "seasonNumber": 14,
+        "episodeNumber": 9
+      },
+      {
+        "showId": 615,
+        "seasonNumber": 6,
+        "episodeNumber": 16
+      },
+      {
+        "showId": 2122,
+        "seasonNumber": 13,
+        "episodeNumber": 3
+      },
+      {
+        "showId": 74204,
+        "seasonNumber": 5,
+        "episodeNumber": 4
+      },
+      {
+        "showId": 15260,
+        "seasonNumber": 4,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 15260,
+        "seasonNumber": 4,
+        "episodeNumber": 9
+      },
+      {
+        "showId": 15260,
+        "seasonNumber": 7,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 387,
+        "seasonNumber": 1,
+        "episodeNumber": 23
+      },
+      {
+        "showId": 387,
+        "seasonNumber": 3,
+        "episodeNumber": 24
+      },
+      {
+        "showId": 387,
+        "seasonNumber": 13,
+        "episodeNumber": 45
+      },
+      {
+        "showId": 1877,
+        "seasonNumber": 3,
+        "episodeNumber": 32
+      },
+      {
+        "showId": 68073,
+        "seasonNumber": 6,
+        "episodeNumber": 6
+      },
+      {
+        "showId": 68073,
+        "seasonNumber": 11,
+        "episodeNumber": 2
+      }
+    ]
+  }
+}
