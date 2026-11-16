@@ -1,4 +1,4 @@
-import seasonalConfig from './seasonal.config.js';
+import seasonalConfig, { MOVIE_GENRES, TV_GENRES } from './seasonal.config.js';
 import MoviesController from './movies.controller.js';
 import { readFile } from 'fs/promises';
 import path from 'path';
@@ -324,7 +324,7 @@ export default class SeasonalController {
         if (matches.length >= HERO_CANDIDATES_PER_TYPE) {
           break;
         }
-        if (await SeasonalController.matchesSeasonFilter(item, { mediaType, filter, seasonData, keywordIds })) {
+        if (await SeasonalController.matchesSeasonFilter(item, { mediaType, filter, keywordIds })) {
           matches.push({ id: item.id, media_type: mediaType });
         }
       }
@@ -336,9 +336,9 @@ export default class SeasonalController {
    * Checks a trending item against the season's base filter the way discover does: every genre must
    * match, and any keyword group may match. Keywords are only looked up when the genre check passes.
    */
-  static async matchesSeasonFilter(item, { mediaType, filter, seasonData, keywordIds }) {
+  static async matchesSeasonFilter(item, { mediaType, filter, keywordIds }) {
     if (filter.genres?.length) {
-      const genreIds = SeasonalController.expandGenres(filter.genres, mediaType, seasonData);
+      const genreIds = SeasonalController.expandGenres(filter.genres, mediaType);
       if (!genreIds.every(id => item.genre_ids?.includes(id))) {
         return false;
       }
@@ -414,14 +414,12 @@ export default class SeasonalController {
   /**
    * Convert genre names to IDs; handle movie vs TV.
    */
-  static expandGenres(genreNames, mediaType, seasonData) {
+  static expandGenres(genreNames, mediaType) {
     if (!genreNames) return [];
     if (typeof genreNames === 'string') {
       genreNames = [genreNames];
     }
-    const genreMap = mediaType === 'movie'
-      ? seasonData.movieGenres
-      : seasonData.tvGenres;
+    const genreMap = mediaType === 'movie' ? MOVIE_GENRES : TV_GENRES;
     return genreNames
       .map(name => {
         // Handle both direct names and names with underscores
@@ -429,6 +427,40 @@ export default class SeasonalController {
         return genreMap[key];
       })
       .filter(Boolean);
+  }
+
+  /**
+   * Appends the genre, keyword, exclusion and certification params shared by every rail, streaming
+   * base and New This Year. Genres use genreOp (AND by default, OR when set). Keyword groups use
+   * keywordOp via buildKeywordClause. Unset filter keys add nothing.
+   */
+  static appendFilterParams(params, filter, mediaType, resolvedKeywords) {
+    if (filter.genres && filter.genres.length > 0) {
+      const genreIds = SeasonalController.expandGenres(filter.genres, mediaType);
+      if (genreIds.length > 0) {
+        const separator = filter.genreOp === 'OR' ? '|' : ',';
+        params.push(`with_genres=${genreIds.join(separator)}`);
+      }
+    }
+
+    if (filter.keywords && filter.keywords.length > 0) {
+      const keywordClause = SeasonalController.buildKeywordClause(filter.keywords, filter.keywordOp, resolvedKeywords);
+      if (keywordClause) params.push(`with_keywords=${keywordClause}`);
+    }
+
+    // Keyword exclusions (TV-only rails): group names resolve to IDs sent as without_keywords
+    if (filter.keywordExclusions && filter.keywordExclusions.length > 0) {
+      const excludedKeywordIds = SeasonalController.expandKeywordGroups(filter.keywordExclusions, resolvedKeywords);
+      if (excludedKeywordIds.length > 0) {
+        params.push(`without_keywords=${excludedKeywordIds.join('|')}`);
+      }
+    }
+
+    // Certification cap (movie only)
+    if (filter.certificationMaxRating) {
+      params.push(`certification_country=${filter.certificationCountry || 'US'}`);
+      params.push(`certification.lte=${filter.certificationMaxRating}`);
+    }
   }
 
   /**
@@ -448,40 +480,7 @@ export default class SeasonalController {
     const minVotes = mediaType === 'movie' ? MIN_VOTE_COUNT_MOVIE : MIN_VOTE_COUNT_TV;
     params.push(`vote_count.gte=${minVotes}`);
 
-    // Genres
-    if (filter.genres && filter.genres.length > 0) {
-      const seasonData = Object.values(seasonalConfig)[0]; // Access season data for genre map
-      const genreIds = SeasonalController.expandGenres(filter.genres, mediaType, seasonData);
-      if (genreIds.length > 0) {
-        if (filter.genreOp === 'OR') {
-          params.push(`with_genres=${genreIds.join('|')}`);
-        } else {
-          // AND: request each separately and intersect on the client (not ideal but TMDB limitation)
-          params.push(`with_genres=${genreIds.join(',')}`);
-        }
-      }
-    }
-
-    // Keywords
-    if (filter.keywords && filter.keywords.length > 0) {
-      // Keywords: groups are OR-ed by default, or AND-ed when keywordOp is 'AND'
-      const keywordClause = SeasonalController.buildKeywordClause(filter.keywords, filter.keywordOp, resolvedKeywords);
-      if (keywordClause) params.push(`with_keywords=${keywordClause}`);
-    }
-
-    // Keyword exclusions (TV-only rails): group names resolve to IDs sent as without_keywords
-    if (filter.keywordExclusions && filter.keywordExclusions.length > 0) {
-      const excludedKeywordIds = SeasonalController.expandKeywordGroups(filter.keywordExclusions, resolvedKeywords);
-      if (excludedKeywordIds.length > 0) {
-        params.push(`without_keywords=${excludedKeywordIds.join('|')}`);
-      }
-    }
-
-    // Certification cap (movie only)
-    if (filter.certificationMaxRating) {
-      params.push(`certification_country=${filter.certificationCountry || 'US'}`);
-      params.push(`certification.lte=${filter.certificationMaxRating}`);
-    }
+    SeasonalController.appendFilterParams(params, filter, mediaType, resolvedKeywords);
 
     return endpoint + params.join('&');
   }
@@ -500,25 +499,12 @@ export default class SeasonalController {
     params.push(`page=${page}`);
     params.push('include_adult=false');
     params.push('language=en-US');
+    params.push('region=US'); // Same as discover, for vote_count consistency
 
     const minVotes = mediaType === 'movie' ? MIN_VOTE_COUNT_MOVIE : MIN_VOTE_COUNT_TV;
     params.push(`vote_count.gte=${minVotes}`);
 
-    // Apply base filter (genre or keyword)
-    if (baseFilter.genres && baseFilter.genres.length > 0) {
-      const seasonData = Object.values(seasonalConfig)[0];
-      const genreIds = SeasonalController.expandGenres(baseFilter.genres, mediaType, seasonData);
-      if (genreIds.length > 0) {
-        params.push(`with_genres=${genreIds.join(',')}`);
-      }
-    }
-
-    if (baseFilter.keywords && baseFilter.keywords.length > 0) {
-      const keywordIds = SeasonalController.expandKeywordGroups(baseFilter.keywords, resolvedKeywords);
-      if (keywordIds.length > 0) {
-        params.push(`with_keywords=${keywordIds.join('|')}`);
-      }
-    }
+    SeasonalController.appendFilterParams(params, baseFilter, mediaType, resolvedKeywords);
 
     return endpoint + params.join('&');
   }
@@ -534,6 +520,7 @@ export default class SeasonalController {
     params.push(`page=${page}`);
     params.push('include_adult=false');
     params.push('language=en-US');
+    params.push('region=US'); // Same as discover, for vote_count consistency
 
     const minVotes = mediaType === 'movie' ? MIN_VOTE_COUNT_MOVIE : MIN_VOTE_COUNT_TV;
     params.push(`vote_count.gte=${minVotes}`);
@@ -545,21 +532,7 @@ export default class SeasonalController {
       params.push(`first_air_date_year=${year}`);
     }
 
-    // Apply base filter
-    if (baseFilter.genres && baseFilter.genres.length > 0) {
-      const seasonData = Object.values(seasonalConfig)[0];
-      const genreIds = SeasonalController.expandGenres(baseFilter.genres, mediaType, seasonData);
-      if (genreIds.length > 0) {
-        params.push(`with_genres=${genreIds.join(',')}`);
-      }
-    }
-
-    if (baseFilter.keywords && baseFilter.keywords.length > 0) {
-      const keywordIds = SeasonalController.expandKeywordGroups(baseFilter.keywords, resolvedKeywords);
-      if (keywordIds.length > 0) {
-        params.push(`with_keywords=${keywordIds.join('|')}`);
-      }
-    }
+    SeasonalController.appendFilterParams(params, baseFilter, mediaType, resolvedKeywords);
 
     return endpoint + params.join('&');
   }

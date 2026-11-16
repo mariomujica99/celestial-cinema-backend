@@ -8,6 +8,43 @@
 // Movie genres: Action, Adventure, Animation, Comedy, Crime, Documentary, Drama, Family, Fantasy, History, Horror, Mystery, Romance, Sci-Fi, Thriller, War
 // TV genres: Action & Adventure, Animation, Comedy, Crime, Documentary, Drama, Family, Kids, Mystery, Reality, Sci-Fi & Fantasy, War & Politics
 
+// Shared genre maps (TMDB IDs). Every season reads these; do not copy them into a season object.
+// Keys are genre names with underscores standing in for spaces ("Sci_Fi" = "Sci-Fi").
+export const MOVIE_GENRES = {
+  Action: 28,
+  Adventure: 12,
+  Animation: 16,
+  Comedy: 35,
+  Crime: 80,
+  Documentary: 99,
+  Drama: 18,
+  Family: 10751,
+  Fantasy: 14,
+  History: 36,
+  Horror: 27,
+  Mystery: 9648,
+  Romance: 10749,
+  Sci_Fi: 878,
+  Thriller: 53,
+  War: 10752,
+  Western: 37,
+};
+
+export const TV_GENRES = {
+  Action_Adventure: 10759,
+  Animation: 16,
+  Comedy: 35,
+  Crime: 80,
+  Documentary: 99,
+  Drama: 18,
+  Family: 10751,
+  Kids: 10762,
+  Mystery: 9648,
+  Reality: 10764,
+  Sci_Fi_Fantasy: 10765,
+  War_Politics: 10768,
+};
+
 const HALLOWEEN = {
   key: 'halloween',
   window: { startMonth: 10, startDay: 1, endMonth: 11, endDay: 1 },
@@ -103,42 +140,6 @@ const HALLOWEEN = {
         10292
       ]
     }
-  },
-
-  // Movie genre IDs (from TMDB)
-  movieGenres: {
-    Action: 28,
-    Adventure: 12,
-    Animation: 16,
-    Comedy: 35,
-    Crime: 80,
-    Documentary: 99,
-    Drama: 18,
-    Family: 10751,
-    Fantasy: 14,
-    History: 36,
-    Horror: 27,
-    Mystery: 9648,
-    Romance: 10749,
-    Sci_Fi: 878,
-    Thriller: 53,
-    War: 10752,
-  },
-
-  // TV genre IDs (from TMDB)
-  tvGenres: {
-    Action_Adventure: 10759,
-    Animation: 16,
-    Comedy: 35,
-    Crime: 80,
-    Documentary: 99,
-    Drama: 18,
-    Family: 10751,
-    Kids: 10762,
-    Mystery: 9648,
-    Reality: 10764,
-    Sci_Fi_Fantasy: 10765,
-    War_Politics: 10768,
   },
 
   streamingBase: {
