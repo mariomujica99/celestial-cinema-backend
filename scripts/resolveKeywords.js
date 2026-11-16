@@ -3,7 +3,7 @@
  * Reads seasonal.config.js, looks up each keyword name via TMDB, and updates resolvedKeywords.
  * Logs keyword usage counts to help identify thin keywords that should be replaced.
  *
- * Usage: node scripts/resolveKeywords.js
+ * Usage: node scripts/resolveKeywords.js <season...>
  *
  * Do NOT run on the server. Run locally, review the output, then commit the updated config.
  */
@@ -12,6 +12,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { parseSeasonArgs } from './seasonArgs.js';
 
 dotenv.config();
 
@@ -142,14 +143,15 @@ async function main() {
     // Dynamically import config
     const configModule = await import(CONFIG_PATH);
     const seasonalConfig = configModule.default;
+    const seasonKeys = parseSeasonArgs('resolveKeywords.js');
 
     console.log('📍 Starting keyword resolution...');
     console.log(`🔑 API Key: ${API_KEY.slice(0, 8)}...`);
 
     const allResults = {};
 
-    for (const [seasonKey, seasonData] of Object.entries(seasonalConfig)) {
-      const { resolvedKeywords } = await resolveSeasonKeywords(seasonKey, seasonData);
+    for (const seasonKey of seasonKeys) {
+      const { resolvedKeywords } = await resolveSeasonKeywords(seasonKey, seasonalConfig[seasonKey]);
       allResults[seasonKey] = resolvedKeywords;
     }
 

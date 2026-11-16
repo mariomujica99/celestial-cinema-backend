@@ -1,10 +1,11 @@
 /**
  * Phase 4a: one-off local scan for seasonal episode candidates.
  *
- * Usage: node scripts/scanEpisodes.js
+ * Usage: node scripts/scanEpisodes.js <season...>
  *   Resolves seed shows to TMDB TV ids (writes scripts/output/shows.resolved.json),
- *   then scans them and writes scripts/output/candidates/<season>.json.
- *   Next: node scripts/approveEpisodes.js (Phase 4b).
+ *   then scans them and writes scripts/output/candidates/<season>.json for each season given.
+ *   Other seasons' candidates files are not touched.
+ *   Next: node scripts/approveEpisodes.js <season...> (Phase 4b).
  *
  * Do NOT run on the server.
  */
@@ -14,6 +15,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import seasonalConfig from '../api/seasonal.config.js';
+import { parseSeasonArgs } from './seasonArgs.js';
 
 dotenv.config();
 
@@ -53,8 +55,16 @@ function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// TMDB titles often use curly apostrophes (’), so both text and terms are compared with straight ones.
+function normalizeApostrophes(text) {
+  return text.replace(/[‘’]/g, "'");
+}
+
 function findMatchedTerms(text, terms) {
-  return terms.filter((term) => new RegExp(`\\b${escapeRegex(term)}\\b`, 'i').test(text));
+  const normalizedText = normalizeApostrophes(text);
+  return terms.filter((term) =>
+    new RegExp(`\\b${escapeRegex(normalizeApostrophes(term))}\\b`, 'i').test(normalizedText)
+  );
 }
 
 function scoreEpisode(episode, terms) {
@@ -113,9 +123,16 @@ async function runResolve() {
   return resolved.filter((show) => show.id);
 }
 
-function getSeasonScanConfigs() {
-  return Object.values(seasonalConfig)
-    .filter((season) => season.episodeTerms?.length)
+function getSeasonScanConfigs(seasonKeys) {
+  return seasonKeys
+    .map((key) => seasonalConfig[key])
+    .filter((season) => {
+      if (!season.episodeTerms?.length) {
+        console.log(`${season.key}: no episodeTerms, skipped`);
+        return false;
+      }
+      return true;
+    })
     .map((season) => ({ key: season.key, episodeTerms: season.episodeTerms }));
 }
 
@@ -153,13 +170,13 @@ async function scanShowSeasons(show, seasonConfigs, candidatesBySeason) {
   }
 }
 
-async function runScan() {
+async function runScan(seasonKeys) {
   const shows = await runResolve();
   if (shows.length === 0) {
     console.error('No shows resolved. Check TMDB_API_KEY and network access.');
     return;
   }
-  const seasonConfigs = getSeasonScanConfigs();
+  const seasonConfigs = getSeasonScanConfigs(seasonKeys);
   const candidatesBySeason = Object.fromEntries(seasonConfigs.map(({ key }) => [key, []]));
   for (const show of shows) {
     await scanShowSeasons(show, seasonConfigs, candidatesBySeason);
@@ -173,7 +190,7 @@ async function runScan() {
 
 async function main() {
   try {
-    await runScan();
+    await runScan(parseSeasonArgs('scanEpisodes.js'));
   } catch (error) {
     console.error('Episode scan failed:', error);
     process.exit(1);

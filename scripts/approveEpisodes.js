@@ -5,7 +5,7 @@
  * Overview-only matches stay in the candidates file with approved: false.
  * Approved entries are ordered by title matches, then score.
  *
- * Usage: node scripts/approveEpisodes.js   (run after scanEpisodes.js)
+ * Usage: node scripts/approveEpisodes.js <season...>   (run after scanEpisodes.js)
  *
  * Do NOT run on the server.
  */
@@ -13,6 +13,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { parseSeasonArgs } from './seasonArgs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CANDIDATES_DIR = path.join(__dirname, 'output', 'candidates');
@@ -39,9 +40,9 @@ async function approveSeasonFile(fileName) {
 
 async function main() {
   try {
-    const fileNames = (await fs.readdir(CANDIDATES_DIR)).filter((name) => name.endsWith('.json'));
-    for (const fileName of fileNames) {
-      await approveSeasonFile(fileName);
+    const seasonKeys = parseSeasonArgs('approveEpisodes.js');
+    for (const seasonKey of seasonKeys) {
+      await approveSeasonFile(`${seasonKey}.json`);
     }
   } catch (error) {
     console.error(`Could not approve candidates in ${CANDIDATES_DIR}. Run scanEpisodes.js first.`, error.message);

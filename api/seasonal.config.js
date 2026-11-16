@@ -47,7 +47,6 @@ export const TV_GENRES = {
 
 const HALLOWEEN = {
   key: 'halloween',
-  window: { startMonth: 10, startDay: 1, endMonth: 11, endDay: 1 },
   hasEpisodeRails: true,
   title: 'Halloween',
   palette: 'halloween', // refs seasonal-themes.css

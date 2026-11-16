@@ -1,10 +1,12 @@
 /**
  * Phase 4c: freeze approved episodes into api/seasonal.episodes.json.
  *
- * Reads scripts/output/candidates/<season>.json (approved entries only) and writes
- * one episodes array per season. The server never scans; it only serves this file.
+ * Reads scripts/output/candidates/<season>.json (approved entries only) for each season passed
+ * on the command line, and replaces only those seasons in the frozen file. Other seasons' entries
+ * are kept as they are, so re-freezing one season can never change another.
+ * The server never scans; it only serves this file.
  *
- * Usage: node scripts/freezeEpisodes.js   (run after approveEpisodes.js)
+ * Usage: node scripts/freezeEpisodes.js <season...>   (run after approveEpisodes.js)
  *
  * Do NOT run on the server.
  */
@@ -12,10 +14,20 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { parseSeasonArgs } from './seasonArgs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CANDIDATES_DIR = path.join(__dirname, 'output', 'candidates');
 const FROZEN_PATH = path.join(__dirname, '..', 'api', 'seasonal.episodes.json');
+
+async function readExistingFrozen() {
+  try {
+    return JSON.parse(await fs.readFile(FROZEN_PATH, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return {};
+    throw error;
+  }
+}
 
 function assertApproved(candidates, fileName) {
   if (candidates.some((candidate) => typeof candidate.approved !== 'boolean')) {
@@ -31,19 +43,19 @@ function toFrozenEntry(candidate) {
   };
 }
 
-async function freezeSeason(fileName) {
+async function freezeSeason(seasonKey) {
+  const fileName = `${seasonKey}.json`;
   const candidates = JSON.parse(await fs.readFile(path.join(CANDIDATES_DIR, fileName), 'utf8'));
   assertApproved(candidates, fileName);
-  const episodes = candidates.filter((candidate) => candidate.approved).map(toFrozenEntry);
-  return { seasonKey: path.basename(fileName, '.json'), episodes };
+  return candidates.filter((candidate) => candidate.approved).map(toFrozenEntry);
 }
 
 async function main() {
   try {
-    const fileNames = (await fs.readdir(CANDIDATES_DIR)).filter((name) => name.endsWith('.json'));
-    const frozen = {};
-    for (const fileName of fileNames) {
-      const { seasonKey, episodes } = await freezeSeason(fileName);
+    const seasonKeys = parseSeasonArgs('freezeEpisodes.js');
+    const frozen = await readExistingFrozen();
+    for (const seasonKey of seasonKeys) {
+      const episodes = await freezeSeason(seasonKey);
       frozen[seasonKey] = { episodes };
       console.log(`${seasonKey}: ${episodes.length} episodes frozen`);
     }
