@@ -284,6 +284,156 @@ const HALLOWEEN = {
   ],
 };
 
+// Thanksgiving: no episode rail for the first ship (episodes can be added later, see the spec's 5.2 note).
+const THANKSGIVING = {
+  key: 'thanksgiving',
+  hasEpisodeRails: false,
+  title: 'Thanksgiving',
+  palette: 'thanksgiving', // refs seasonal-themes.css
+
+  keywordGroups: {
+    THANKS: ['thanksgiving'],
+    FAMILY_GATHER: ['family reunion', 'family dinner', 'dysfunctional family'],
+    FEEL_GOOD: ['uplifting', 'heartwarming'],
+    FOOD: ['cooking', 'chef', 'food'],
+    AUTUMN: ['autumn', 'fall'],
+    FOOTBALL: ['american football'],
+  },
+
+  // Resolved by scripts/resolveKeywords.js thanksgiving, then pasted here
+  resolvedKeywords: {
+    thanksgiving: {
+      THANKS: [4543],
+      FAMILY_GATHER: [18187, 9848, 10041],
+      FEEL_GOOD: [334465, 319357],
+      FOOD: [1918, 18293, 10637],
+      AUTUMN: [178883, 6201],
+      FOOTBALL: [579],
+    },
+  },
+
+  streamingBase: {
+    movies: { keywords: ['THANKS', 'FAMILY_GATHER'] },
+    tv: { keywords: ['THANKS', 'FAMILY_GATHER'] },
+  },
+
+  rails: [
+    {
+      key: 'family-reunions',
+      title: 'Family Reunions',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Family', 'Comedy'],
+        genreOp: 'OR',
+        keywords: ['THANKS', 'FAMILY_GATHER'],
+      },
+      tvFilter: {
+        genres: ['Family', 'Comedy'],
+        genreOp: 'OR',
+        keywords: ['THANKS', 'FAMILY_GATHER'],
+      },
+    },
+    {
+      key: 'comfort-watches',
+      title: 'Comfort Watches',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Comedy', 'Drama'],
+        genreOp: 'OR',
+        keywords: ['FEEL_GOOD'],
+        minVoteAverage: 6.5,
+        minVoteCount: 100,
+        sortBy: 'vote_average.desc',
+      },
+      tvFilter: {
+        genres: ['Comedy', 'Drama'],
+        genreOp: 'OR',
+        keywords: ['FEEL_GOOD'],
+        minVoteAverage: 6.5,
+        minVoteCount: 40, // TV has fewer titles; 100 leaves only one
+        sortBy: 'vote_average.desc',
+      },
+    },
+    {
+      key: 'new-this-year',
+      title: 'New This Year',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      isNewThisYear: true,
+    },
+    {
+      key: 'family-dinners',
+      title: 'Family Dinners',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Comedy', 'Drama'], // AND, as in the spec
+        keywords: ['FAMILY_GATHER'],
+      },
+      tvFilter: {
+        genres: ['Comedy', 'Drama'],
+        keywords: ['FAMILY_GATHER'],
+      },
+    },
+    {
+      key: 'food-and-feasts',
+      title: 'Food & Feasts',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Documentary'],
+        keywords: ['FOOD'],
+      },
+      tvFilter: {
+        genres: ['Documentary', 'Reality'],
+        genreOp: 'OR',
+        keywords: ['FOOD'],
+      },
+    },
+    {
+      key: 'football-night',
+      title: 'Football Night',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        keywords: ['FOOTBALL'],
+      },
+      tvFilter: {
+        keywords: ['FOOTBALL'],
+      },
+    },
+    {
+      key: 'cozy-animation',
+      title: 'Cozy Animation',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Animation', 'Family'],
+        keywords: ['FEEL_GOOD', 'AUTUMN'],
+      },
+      tvFilter: {
+        genres: ['Animation'],
+        keywords: ['FEEL_GOOD', 'AUTUMN'],
+      },
+    },
+    {
+      key: 'autumn-vibes',
+      title: 'Autumn Vibes',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        keywords: ['AUTUMN'],
+      },
+      tvFilter: {
+        keywords: ['AUTUMN'],
+      },
+    },
+  ],
+};
+
 export default {
   halloween: HALLOWEEN,
+  thanksgiving: THANKSGIVING,
 };

@@ -461,6 +461,11 @@ export default class SeasonalController {
       params.push(`certification_country=${filter.certificationCountry || 'US'}`);
       params.push(`certification.lte=${filter.certificationMaxRating}`);
     }
+
+    // Rating floor (e.g. 6.5). Pairs with minVoteCount so a high average isn't a handful of votes.
+    if (typeof filter.minVoteAverage === 'number') {
+      params.push(`vote_average.gte=${filter.minVoteAverage}`);
+    }
   }
 
   /**
@@ -470,14 +475,16 @@ export default class SeasonalController {
     let endpoint = `/discover/${mediaType}?`;
     const params = [];
 
-    params.push('sort_by=popularity.desc');
+    // sortBy overrides the default popularity sort (e.g. 'vote_average.desc' for rated rails)
+    params.push(`sort_by=${filter.sortBy || 'popularity.desc'}`);
     params.push(`page=${page}`);
     params.push('include_adult=false');
     params.push('language=en-US');
     params.push('region=US'); // For vote_count consistency
 
-    // Vote count floor
-    const minVotes = mediaType === 'movie' ? MIN_VOTE_COUNT_MOVIE : MIN_VOTE_COUNT_TV;
+    // Vote count floor: the default, unless the rail asks for a higher one
+    const defaultMinVotes = mediaType === 'movie' ? MIN_VOTE_COUNT_MOVIE : MIN_VOTE_COUNT_TV;
+    const minVotes = Math.max(defaultMinVotes, filter.minVoteCount || 0);
     params.push(`vote_count.gte=${minVotes}`);
 
     SeasonalController.appendFilterParams(params, filter, mediaType, resolvedKeywords);
