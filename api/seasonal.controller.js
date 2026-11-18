@@ -466,6 +466,20 @@ export default class SeasonalController {
     if (typeof filter.minVoteAverage === 'number') {
       params.push(`vote_average.gte=${filter.minVoteAverage}`);
     }
+
+    // Release cutoff: releaseDateBefore is an exclusive 'YYYY-MM-DD'. TMDB only has .lte, so send the day before.
+    if (filter.releaseDateBefore) {
+      const cutoff = SeasonalController.dayBefore(filter.releaseDateBefore);
+      params.push(mediaType === 'movie'
+        ? `primary_release_date.lte=${cutoff}`
+        : `first_air_date.lte=${cutoff}`);
+    }
+  }
+
+  static dayBefore(isoDate) {
+    const date = new Date(`${isoDate}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() - 1);
+    return date.toISOString().slice(0, 10);
   }
 
   /**

@@ -433,7 +433,175 @@ const THANKSGIVING = {
   ],
 };
 
+// Christmas: no episode rail for the first ship (episodes can be added later, same as Thanksgiving).
+const CHRISTMAS = {
+  key: 'christmas',
+  hasEpisodeRails: false,
+  title: 'Christmas',
+  palette: 'christmas', // refs seasonal-themes.css
+
+  keywordGroups: {
+    XMAS: ['christmas'],
+    HOLIDAY: ['holiday', 'santa claus', 'winter'], // not used by a rail yet; kept per spec, check in audit
+    NATIVITY: ['nativity', 'jesus christ', 'bible'],
+    XMAS_BAKE: ['baking', 'cooking competition'],
+  },
+
+  // Resolved by scripts/resolveKeywords.js christmas, then pasted here
+  resolvedKeywords: {
+    christmas: {
+      XMAS: [207317],
+      HOLIDAY: [65, 1991, 1442],
+      NATIVITY: [207089, 230097, 3036],
+      XMAS_BAKE: [182282, 222083],
+    },
+  },
+
+  streamingBase: {
+    movies: { keywords: ['XMAS'] },
+    tv: { keywords: ['XMAS'] },
+  },
+
+  rails: [
+    {
+      key: 'family-favorites',
+      title: 'Family Favorites',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Family'],
+        keywords: ['XMAS'],
+      },
+      tvFilter: {
+        genres: ['Family', 'Kids'],
+        genreOp: 'OR',
+        keywords: ['XMAS'],
+      },
+    },
+    {
+      key: 'holiday-romance',
+      title: 'Holiday Romance',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Romance'],
+        keywords: ['XMAS'],
+      },
+      tvFilter: {
+        genres: ['Drama', 'Comedy'],
+        genreOp: 'OR',
+        keywords: ['XMAS'],
+      },
+    },
+    {
+      key: 'new-this-year',
+      title: 'New This Year',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      isNewThisYear: true,
+    },
+    {
+      key: 'holiday-comedies',
+      title: 'Holiday Comedies',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Comedy'],
+        keywords: ['XMAS'],
+      },
+      tvFilter: {
+        genres: ['Comedy'],
+        keywords: ['XMAS'],
+      },
+    },
+    {
+      key: 'holiday-classics',
+      title: 'Holiday Classics',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        keywords: ['XMAS'],
+        releaseDateBefore: '1990-01-01',
+        minVoteCount: 100,
+      },
+      tvFilter: {
+        keywords: ['XMAS'],
+        releaseDateBefore: '1990-01-01',
+      },
+    },
+    {
+      key: 'holiday-action',
+      title: 'Holiday Action',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Action'],
+        keywords: ['XMAS'],
+      },
+      tvFilter: {
+        genres: ['Action_Adventure'],
+        keywords: ['XMAS'],
+      },
+    },
+    {
+      key: 'animated-and-kids',
+      title: 'Animated & Kids',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Animation'],
+        keywords: ['XMAS'],
+      },
+      tvFilter: {
+        genres: ['Animation', 'Kids'],
+        genreOp: 'OR',
+        keywords: ['XMAS'],
+      },
+    },
+    {
+      key: 'holiday-thrills',
+      title: 'Holiday Thrills',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        genres: ['Horror', 'Thriller'],
+        genreOp: 'OR',
+        keywords: ['XMAS'],
+      },
+      tvFilter: {
+        genres: ['Mystery', 'Crime'],
+        genreOp: 'OR',
+        keywords: ['XMAS'],
+      },
+    },
+    {
+      key: 'holiday-baking',
+      title: 'Holiday Baking',
+      types: ['tv'],
+      allowToggle: false,
+      tvFilter: {
+        genres: ['Reality'],
+        keywords: ['XMAS', 'XMAS_BAKE'],
+        keywordOp: 'OR',
+      },
+    },
+    {
+      key: 'faith-and-nativity',
+      title: 'Faith & Nativity',
+      types: ['movie', 'tv'],
+      allowToggle: true,
+      movieFilter: {
+        keywords: ['NATIVITY', 'XMAS'],
+      },
+      tvFilter: {
+        keywords: ['NATIVITY', 'XMAS'],
+      },
+    },
+  ],
+};
+
 export default {
   halloween: HALLOWEEN,
   thanksgiving: THANKSGIVING,
+  christmas: CHRISTMAS,
 };

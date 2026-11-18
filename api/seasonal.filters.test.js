@@ -71,6 +71,16 @@ test('keywordExclusions become without_keywords', () => {
   assert.equal(params(url).get('without_keywords'), '3');
 });
 
+test('releaseDateBefore is exclusive: the cutoff is the day before, using lte', () => {
+  const movie = SeasonalController.buildDiscoverEndpoint('movie', { releaseDateBefore: '1990-01-01' }, KEYWORDS, 1);
+  assert.equal(params(movie).get('primary_release_date.lte'), '1989-12-31');
+  assert.equal(params(movie).has('first_air_date.lte'), false);
+
+  const tv = SeasonalController.buildDiscoverEndpoint('tv', { releaseDateBefore: '1990-01-01' }, KEYWORDS, 1);
+  assert.equal(params(tv).get('first_air_date.lte'), '1989-12-31');
+  assert.equal(params(tv).has('primary_release_date.lte'), false);
+});
+
 test('streaming and new-this-year base filters apply the same helper, with region=US', () => {
   const base = { genres: ['Comedy'], keywords: ['A'] };
   const streaming = SeasonalController.buildStreamingEndpoint('movie', 8, base, KEYWORDS, 1);
